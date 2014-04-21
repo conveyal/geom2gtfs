@@ -1,0 +1,50 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'eu.appsatori:gradle-fatjar-plugin:0.2-rc1'
+    }
+}
+
+apply plugin: 'fatjar'
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+
+ext {
+    geotoolsVersion = "10.5"
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.conveyal.geom2gtfs.Main'
+    }
+}
+
+fatJar {
+    manifest {
+        attributes 'Main-Class': 'com.conveyal.geom2gtfs.Main'
+    }
+}
+
+eclipse {
+    classpath {
+       downloadSources=true
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url 'http://download.osgeo.org/webdav/geotools/' }
+}
+
+dependencies {
+    compile (
+        "org.geotools:gt-shapefile:$geotoolsVersion",
+        "org.onebusaway:onebusaway-gtfs:1.3.3",
+        "org.slf4j:slf4j-log4j12:1.7.7"
+    )
+}
