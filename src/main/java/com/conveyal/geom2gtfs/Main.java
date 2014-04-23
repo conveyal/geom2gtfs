@@ -15,24 +15,17 @@ import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
-import org.geotools.geometry.jts.JTS;
-import org.geotools.referencing.GeodeticCalculator;
-import org.onebusaway.gtfs.model.Stop;
 import org.opengis.feature.Feature;
 import org.opengis.feature.GeometryAttribute;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.operation.TransformException;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.MultiLineString;
-import com.vividsolutions.jts.geom.Point;
-import com.vividsolutions.jts.linearref.LengthIndexedLine;
 
 public class Main {
 
 	private static final double STOP_SPACING = 400; //meters
 
-	public static void main(String[] args) throws MalformedURLException, IOException, TransformException {
+	public static void main(String[] args) throws MalformedURLException, IOException {
 		if(args.length < 1){
     		System.out.println( "usage: cmd shapefile_fn" );
     		return;
@@ -44,9 +37,7 @@ public class Main {
 		
         FeatureCollection<?, ?> featCol = lines.getFeatures();
         FeatureIterator<?> features = featCol.features();
-        
-        CoordinateReferenceSystem crs = lines.getSchema().getCoordinateReferenceSystem();
-        
+                
         List<ProtoRouteStop> allStops = new ArrayList<ProtoRouteStop>();
         while( features.hasNext() ){
              Feature feat = (Feature) features.next();
@@ -55,10 +46,9 @@ public class Main {
              
              GeometryAttribute geomAttr = feat.getDefaultGeometryProperty();
              MultiLineString geom = (MultiLineString) geomAttr.getValue();
-             System.out.println( geomLen( geom, crs ) );
              
-             List<ProtoRouteStop> stops = makeStops( geom, crs, STOP_SPACING, feat.getProperty("ROUTE_ID").getValue().toString() );
-             allStops.addAll( stops );
+             List<ProtoRouteStop> prss = makeProtoRouteStops( geom, STOP_SPACING, feat.getProperty("ROUTE_ID").getValue().toString() );
+             allStops.addAll( prss );
              
              System.out.println( "" );
 
@@ -67,56 +57,54 @@ public class Main {
         PrintWriter writer = new PrintWriter("out.csv", "UTF-8");
 		writer.println("lon,lat,stop_id");
 		for( ProtoRouteStop prs : allStops ){
-			writer.println( prs.coord.x+","+prs.coord.y+","+prs.stopId );
+			writer.println( prs.coord.x+","+prs.coord.y+","+prs.routeId );
 		}
 		writer.close();
 		
 	}
 	
-	private static List<ProtoRouteStop> makeStops(MultiLineString geom, CoordinateReferenceSystem crs, double spacing, String stopId) throws TransformException {
+	private static List<ProtoRouteStop> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
 		List<ProtoRouteStop> ret = new ArrayList<ProtoRouteStop>();
 		
-		LengthIndexedLine chopper = new LengthIndexedLine( geom );
+		Coordinate[] coords = geom.getCoordinates();
+		double overshot = 0;
+		double segStartDist = 0;
 		
-		double len = geomLen( geom, crs );
-		double nSpans = Math.ceil(len/spacing);
-		double spanLength = len/nSpans;
-		
-		double startIndex = chopper.getStartIndex();
-		double endIndex = chopper.getEndIndex();
-		
-		double indexSpanLength = (endIndex-startIndex)/nSpans;
-		System.out.println( "indexSpanLength: "+indexSpanLength );
-		
-		for(int i=0; i<nSpans+1; i++){
-			Coordinate coord = chopper.extractPoint( i*indexSpanLength );
+		for(int i=0; i<coords.length-1; i++){
+			Coordinate p1 = coords[i];
+			Coordinate p2 = coords[i+1];
 			
-			ProtoRouteStop prs = new ProtoRouteStop();
-			prs.coord = coord;
-			prs.dist = spanLength * i;
-			prs.stopId = stopId;
-			ret.add( prs );
+			double segCurs = overshot;
+			double segLen = greatCircle( p1, p2 );
+			
+			while( segCurs < segLen ){
+				double index = segCurs/segLen;
+				Coordinate interp = interpolate( p1, p2, index );
+				
+				ProtoRouteStop prs = new ProtoRouteStop();
+				prs.coord = interp;
+				prs.routeId = routeId;
+				prs.dist = segStartDist + segCurs;
+				ret.add( prs );
+				
+				segCurs += spacing;
+			}
+			
+			overshot = segCurs - segLen;
+			
+			segStartDist += segLen;
 		}
 		
 		return ret;
 	}
 
-	private static double geomLen(MultiLineString geom, CoordinateReferenceSystem crs) throws TransformException {
-		GeodeticCalculator gc = new GeodeticCalculator(crs);
+	private static Coordinate interpolate(Coordinate p1, Coordinate p2,
+			double index) {
 		
-		double len = 0;
-		Coordinate[] coords = geom.getCoordinates();
-		for(int i=0; i<coords.length-1; i++){
-			Coordinate p1 = coords[0];
-			Coordinate p2 = coords[1];
-			
-			gc.setStartingPosition( JTS.toDirectPosition(p1, crs) );
-			gc.setDestinationPosition( JTS.toDirectPosition(p2, crs) );
-			
-			len += gc.getOrthodromicDistance();
-		}
+		double x = (p2.x-p1.x)*index + p1.x;
+		double y = (p2.y-p1.y)*index + p1.y;
 		
-		return len;
+		return new Coordinate(x,y);
 	}
 
 	private static FeatureSource<?, ?> getFeatureSource(String shp_filename)
@@ -154,6 +142,10 @@ public class Main {
 	    
 	    double distMeters = distNautMiles * 1852;
 	    return distMeters;
+	}
+	
+	static double greatCircle( Coordinate p1, Coordinate p2 ){
+		return greatCircle( p1.x, p1.y, p2.x, p2.y );
 	}
 	
 }
