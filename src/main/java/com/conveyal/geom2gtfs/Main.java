@@ -37,6 +37,7 @@ public class Main {
 	private static final String DEFAULT_NAME = "agency";
 	private static final String DEFAULT_AGENCY_URL = "www.example.com";
 	private static final String DEFAULT_AGENCY_TIMEZONE = "Europe/London";
+	private static final boolean BIDIRECTIONAL = false;
 
 	public static void main(String[] args) throws MalformedURLException, IOException {
 		if(args.length < 1){
@@ -63,6 +64,7 @@ public class Main {
         FeatureIterator<?> features = featCol.features();
                 
         List<ProtoRouteStop> allStops = new ArrayList<ProtoRouteStop>();
+        Map<ProtoRouteStop,Stop> prsStops = new HashMap<ProtoRouteStop,Stop>();
         int stopCounter = 0;
         int tripCounter = 0;
         while( features.hasNext() ){
@@ -83,6 +85,20 @@ public class Main {
              route.setShortName( routeName );
              route.setAgency(agency);
              routes.add(route);
+             
+             // generate stops
+             for(ProtoRouteStop prs : prss){
+	             // generate stops
+            	 Stop stop = new Stop();
+            	 stop.setLat(prs.coord.y);
+            	 stop.setLon(prs.coord.x);
+            	 stop.setId( new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(stopCounter)) );
+            	 stop.setName( String.valueOf(stopCounter) );
+            	 stopCounter++;
+            	 stops.add(stop);
+            	 
+				 prsStops.put( prs, stop );
+             }
              
              // generate a trip
              Trip trip = new Trip();
@@ -105,28 +121,69 @@ public class Main {
              freq = makeFreq(feat, 15, 18, "FRECHPT", trip);
              frequencies.add( freq );
              
-             int i=0;
-             for(ProtoRouteStop prs : prss){
-	             // generate stops
-            	 Stop stop = new Stop();
-            	 stop.setLat(prs.coord.y);
-            	 stop.setLon(prs.coord.x);
-            	 stop.setId( new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(stopCounter)) );
-            	 stop.setName( String.valueOf(stopCounter) );
-            	 stopCounter++;
-            	 stops.add(stop);
+             double firstStopDist=0;
+             for(int i=0; i<prss.size(); i++){
+
+            	 ProtoRouteStop prs = prss.get(i); 
+            	 if(i==0){
+            		 firstStopDist = prs.dist;
+            	 }
+            	 Stop stop = prsStops.get(prs);
 	             
 	             // generate stoptime
             	 StopTime stoptime = new StopTime();
             	 stoptime.setStop(stop);
             	 stoptime.setTrip(trip);
             	 stoptime.setStopSequence(i);
-            	 int time = (int)(prs.dist/VEHICLE_SPEED);
+            	 double dist = Math.abs(prs.dist-firstStopDist);
+            	 int time = (int)(dist/VEHICLE_SPEED);
             	 stoptime.setArrivalTime(time);
             	 stoptime.setDepartureTime(time);
             	 stoptimes.add(stoptime);
             	 
-            	 i++;
+             }
+             
+             if(BIDIRECTIONAL){
+                 // generate a trip
+                 trip = new Trip();
+                 trip.setRoute(route);
+                 trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(tripCounter)));
+                 trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID,"0"));
+                 tripCounter++;
+                 trips.add(trip);
+                 
+                 // generate a frequency
+                 freq = makeFreq(feat, 6, 9, "FRECHPM", trip);
+                 frequencies.add( freq );
+                 freq = makeFreq(feat, 9, 11, "FRECEPM", trip);
+                 frequencies.add( freq );
+                 freq = makeFreq(feat, 11, 13, "FRECALM", trip);
+                 frequencies.add( freq );
+                 freq = makeFreq(feat, 13, 15, "FRECEPT", trip);
+                 frequencies.add( freq );
+                 freq = makeFreq(feat, 15, 18, "FRECHPT", trip);
+                 frequencies.add( freq );
+                 
+                 for(int i=0; i<prss.size(); i++){
+                	 ProtoRouteStop prs = prss.get(prss.size()-1-i);
+                	 if(i==0){
+                		 firstStopDist = prs.dist;
+                	 }
+                	 Stop stop = prsStops.get(prs);
+    	             
+    	             // generate stoptime
+                	 StopTime stoptime = new StopTime();
+                	 stoptime.setStop(stop);
+                	 stoptime.setTrip(trip);
+                	 stoptime.setStopSequence(i);
+                	 double dist = Math.abs(prs.dist-firstStopDist);
+                	 int time = (int)(dist/VEHICLE_SPEED);
+                	 stoptime.setArrivalTime(time);
+                	 stoptime.setDepartureTime(time);
+                	 stoptimes.add(stoptime);
+                	 
+                	 i++;
+                 }
              }
              
              allStops.addAll( prss );
@@ -192,12 +249,14 @@ public class Main {
 		double overshot = 0;
 		double segStartDist = 0;
 		
+		double totalLen=0;
 		for(int i=0; i<coords.length-1; i++){
 			Coordinate p1 = coords[i];
 			Coordinate p2 = coords[i+1];
 			
 			double segCurs = overshot;
 			double segLen = greatCircle( p1, p2 );
+			totalLen+=segLen;
 			
 			while( segCurs < segLen ){
 				double index = segCurs/segLen;
@@ -216,6 +275,13 @@ public class Main {
 			
 			segStartDist += segLen;
 		}
+		
+		// add one final stop, at the very end
+		ProtoRouteStop prs = new ProtoRouteStop();
+		prs.coord = coords[coords.length-1];
+		prs.routeId = routeId;
+		prs.dist = totalLen;
+		ret.add(prs);
 		
 		return ret;
 	}
