@@ -15,6 +15,14 @@ import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
+import org.onebusaway.gtfs.model.Agency;
+import org.onebusaway.gtfs.model.AgencyAndId;
+import org.onebusaway.gtfs.model.Frequency;
+import org.onebusaway.gtfs.model.Route;
+import org.onebusaway.gtfs.model.Stop;
+import org.onebusaway.gtfs.model.StopTime;
+import org.onebusaway.gtfs.model.Trip;
+import org.onebusaway.gtfs.serialization.GtfsWriter;
 import org.opengis.feature.Feature;
 import org.opengis.feature.GeometryAttribute;
 
@@ -24,6 +32,11 @@ import com.vividsolutions.jts.geom.MultiLineString;
 public class Main {
 
 	private static final double STOP_SPACING = 400; //meters
+	private static final String DEFAULT_AGENCY_ID = "0";
+	private static final double VEHICLE_SPEED = 5.3;
+	private static final String DEFAULT_NAME = "agency";
+	private static final String DEFAULT_AGENCY_URL = "www.example.com";
+	private static final String DEFAULT_AGENCY_TIMEZONE = "Europe/London";
 
 	public static void main(String[] args) throws MalformedURLException, IOException {
 		if(args.length < 1){
@@ -32,6 +45,17 @@ public class Main {
 		}
 		
 		String fn = args[0];
+		
+		Agency agency = new Agency();
+		agency.setId(DEFAULT_AGENCY_ID);
+		agency.setName(DEFAULT_NAME);
+		agency.setUrl(DEFAULT_AGENCY_URL);
+		agency.setTimezone(DEFAULT_AGENCY_TIMEZONE);
+		List<Route> routes = new ArrayList<Route>();
+		List<Stop> stops = new ArrayList<Stop>();
+		List<Trip> trips = new ArrayList<Trip>();
+		List<Frequency> frequencies = new ArrayList<Frequency>();
+		List<StopTime> stoptimes = new ArrayList<StopTime>();
 				
 		FeatureSource<?, ?> lines = getFeatureSource(fn);
 		
@@ -39,6 +63,8 @@ public class Main {
         FeatureIterator<?> features = featCol.features();
                 
         List<ProtoRouteStop> allStops = new ArrayList<ProtoRouteStop>();
+        int stopCounter = 0;
+        int tripCounter = 0;
         while( features.hasNext() ){
              Feature feat = (Feature) features.next();
              
@@ -47,7 +73,62 @@ public class Main {
              GeometryAttribute geomAttr = feat.getDefaultGeometryProperty();
              MultiLineString geom = (MultiLineString) geomAttr.getValue();
              
-             List<ProtoRouteStop> prss = makeProtoRouteStops( geom, STOP_SPACING, feat.getProperty("ROUTE_ID").getValue().toString() );
+             String routeId = feat.getProperty("ROUTE_ID").getValue().toString();
+             String routeName = feat.getProperty("ROUTE_NAME").getValue().toString();
+             List<ProtoRouteStop> prss = makeProtoRouteStops( geom, STOP_SPACING, routeId );
+             
+             // generate route
+             Route route = new Route();
+             route.setId( new AgencyAndId(DEFAULT_AGENCY_ID, routeId) );
+             route.setShortName( routeName );
+             route.setAgency(agency);
+             routes.add(route);
+             
+             // generate a trip
+             Trip trip = new Trip();
+             trip.setRoute(route);
+             trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(tripCounter)));
+             trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID,"0"));
+             tripCounter++;
+             trips.add(trip);
+             
+             // generate a frequency
+             Frequency freq;
+             freq = makeFreq(feat, 6, 9, "FRECHPM", trip);
+             frequencies.add( freq );
+             freq = makeFreq(feat, 9, 11, "FRECEPM", trip);
+             frequencies.add( freq );
+             freq = makeFreq(feat, 11, 13, "FRECALM", trip);
+             frequencies.add( freq );
+             freq = makeFreq(feat, 13, 15, "FRECEPT", trip);
+             frequencies.add( freq );
+             freq = makeFreq(feat, 15, 18, "FRECHPT", trip);
+             frequencies.add( freq );
+             
+             int i=0;
+             for(ProtoRouteStop prs : prss){
+	             // generate stops
+            	 Stop stop = new Stop();
+            	 stop.setLat(prs.coord.y);
+            	 stop.setLon(prs.coord.x);
+            	 stop.setId( new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(stopCounter)) );
+            	 stop.setName( String.valueOf(stopCounter) );
+            	 stopCounter++;
+            	 stops.add(stop);
+	             
+	             // generate stoptime
+            	 StopTime stoptime = new StopTime();
+            	 stoptime.setStop(stop);
+            	 stoptime.setTrip(trip);
+            	 stoptime.setStopSequence(i);
+            	 int time = (int)(prs.dist/VEHICLE_SPEED);
+            	 stoptime.setArrivalTime(time);
+            	 stoptime.setDepartureTime(time);
+            	 stoptimes.add(stoptime);
+            	 
+            	 i++;
+             }
+             
              allStops.addAll( prss );
              
              System.out.println( "" );
@@ -61,6 +142,47 @@ public class Main {
 		}
 		writer.close();
 		
+	    GtfsWriter gtfsWriter = new GtfsWriter();
+	    gtfsWriter.setOutputLocation(new File("gtfs_freq.zip"));
+	    
+	    gtfsWriter.handleEntity( agency );
+	    
+	    for(Route route : routes){
+	    	gtfsWriter.handleEntity(route);
+	    }
+	    for(Trip trip : trips){
+	    	gtfsWriter.handleEntity(trip);
+	    }
+	    for(Stop stop : stops){
+	    	gtfsWriter.handleEntity(stop);
+	    }
+	    for(StopTime stoptime : stoptimes){
+	    	gtfsWriter.handleEntity(stoptime);
+	    }
+	    for(Frequency fr : frequencies){
+	    	gtfsWriter.handleEntity(fr);
+	    }
+	    
+	    gtfsWriter.close();
+		
+	}
+
+	private static Frequency makeFreq(Feature feat, int beginHour, int endHour, String propName, Trip trip) {
+		Frequency freq;
+		double perHour;
+		double headway;
+		
+		freq = new Frequency(); // FRECHPM, am peak hour
+		freq.setStartTime(beginHour*3600);
+		freq.setEndTime(endHour*3600);
+		String perHourStr = feat.getProperty(propName).getValue().toString();
+		perHour = Double.parseDouble( perHourStr ); // arrivals per hour
+		headway = 3600/perHour;
+		freq.setHeadwaySecs((int) headway);
+		
+		freq.setTrip( trip );
+		 
+		return freq;
 	}
 	
 	private static List<ProtoRouteStop> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
