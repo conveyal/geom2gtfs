@@ -28,5 +28,7 @@
 		["FRECALM",11,13],
 		["FRECEPT",13,15],
 		["FRECHPT",15,18]	
-	]
+	],
+	"start_date":"20140101",
+	"end_date":"20150101"
 }

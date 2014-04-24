@@ -18,9 +18,11 @@ import org.onebusaway.gtfs.model.Agency;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Frequency;
 import org.onebusaway.gtfs.model.Route;
+import org.onebusaway.gtfs.model.ServiceCalendar;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.Trip;
+import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.onebusaway.gtfs.serialization.GtfsWriter;
 import org.opengis.feature.Feature;
 import org.opengis.feature.GeometryAttribute;
@@ -31,6 +33,7 @@ import com.vividsolutions.jts.geom.MultiLineString;
 public class Main {
 
 	private static final String DEFAULT_AGENCY_ID = "0";
+	private static final String DEFAULT_CAL_ID = "0";
 	static Config config;
 
 	public static void main(String[] args) throws MalformedURLException, IOException {
@@ -46,6 +49,19 @@ public class Main {
 		config = new Config(config_fn);
 		
 		GtfsQueue queue = new GtfsQueue();
+		
+		ServiceCalendar cal = new ServiceCalendar();
+		cal.setMonday(1);
+		cal.setTuesday(1);
+		cal.setWednesday(1);
+		cal.setThursday(1);
+		cal.setFriday(1);
+		cal.setSaturday(1);
+		cal.setSunday(1);
+		cal.setStartDate( new ServiceDate( config.getStartDate() ) );
+		cal.setEndDate( new ServiceDate( config.getEndDate() ) );
+		cal.setServiceId( new AgencyAndId(DEFAULT_AGENCY_ID, DEFAULT_CAL_ID) );
+		queue.calendars.add( cal );
 		
 		Agency agency = new Agency();
 		agency.setId(DEFAULT_AGENCY_ID);
@@ -122,7 +138,7 @@ public class Main {
 		 Trip trip = new Trip();
 		 trip.setRoute(route);
 		 trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.trips.size())));
-		 trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID,"0"));
+		 trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID,DEFAULT_CAL_ID));
 		 queue.trips.add(trip);
 		 
 		 // generate a frequency

@@ -4,11 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.opengis.feature.Feature;
 
 public class Config {
@@ -154,6 +157,24 @@ public class Config {
 		}
 		
 		return ret;
+	}
+
+	public Date getStartDate() {
+		String startDateStr = data.getString("start_date");
+		Calendar ret = Calendar.getInstance();
+		ret.set(Calendar.YEAR, Integer.parseInt( startDateStr.substring(0, 4) ));
+		ret.set(Calendar.MONTH, Integer.parseInt( startDateStr.substring(4,6) ));
+		ret.set(Calendar.DAY_OF_MONTH, Integer.parseInt( startDateStr.substring(6) ));
+		return ret.getTime();
+	}
+
+	public Date getEndDate() {
+		String startDateStr = data.getString("end_date");
+		Calendar ret = Calendar.getInstance();
+		ret.set(Calendar.YEAR, Integer.parseInt( startDateStr.substring(0, 4) ));
+		ret.set(Calendar.MONTH, Integer.parseInt( startDateStr.substring(4,6) ));
+		ret.set(Calendar.DAY_OF_MONTH, Integer.parseInt( startDateStr.substring(6) ));
+		return ret.getTime();
 	}
 
 }
