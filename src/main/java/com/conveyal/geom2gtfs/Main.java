@@ -37,12 +37,32 @@ public class Main {
 	private static final String DEFAULT_AGENCY_URL = "www.example.com";
 	private static final String DEFAULT_AGENCY_TIMEZONE = "Europe/London";
 	private static final boolean BIDIRECTIONAL = false;
+	private static final HashMap<String,Integer> SMODETOMODE = new HashMap<String,Integer>();
+	private static final HashMap<Integer,Integer> MODETOSPACING = new HashMap<Integer,Integer>();
+	private static final HashMap<Integer,Double> MODETOSPEED = new HashMap<Integer,Double>();
 
 	public static void main(String[] args) throws MalformedURLException, IOException {
 		if(args.length < 1){
     		System.out.println( "usage: cmd shapefile_fn" );
     		return;
 		}
+		
+		SMODETOMODE.put("1",1);
+		SMODETOMODE.put("2", 2);
+		SMODETOMODE.put("3", 0);
+		SMODETOMODE.put(null,3);
+		
+		MODETOSPACING.put(0,500);
+		MODETOSPACING.put(1,700);
+		MODETOSPACING.put(2,1500);
+		MODETOSPACING.put(3,300);
+		MODETOSPACING.put(null, 400);
+		
+		MODETOSPEED.put(0,12*0.44704);
+		MODETOSPEED.put(1, 20*0.44704);
+		MODETOSPEED.put(2, 30*0.44704);
+		MODETOSPEED.put(3, 12*0.44704);
+		MODETOSPEED.put(null, 15*0.44704);
 		
 		String fn = args[0];
 		
@@ -59,7 +79,6 @@ public class Main {
 		
         FeatureCollection<?, ?> featCol = lines.getFeatures();
         FeatureIterator<?> features = featCol.features();
-                
         while( features.hasNext() ){
              Feature feat = (Feature) features.next();
              
@@ -78,18 +97,28 @@ public class Main {
 		GeometryAttribute geomAttr = feat.getDefaultGeometryProperty();
 		 MultiLineString geom = (MultiLineString) geomAttr.getValue();
 		 
-		 String routeId = feat.getProperty("ROUTE_ID").getValue().toString();
-		 String routeName = feat.getProperty("ROUTE_NAME").getValue().toString();
-		 List<ProtoRouteStop> prss = makeProtoRouteStops( geom, STOP_SPACING, routeId );
+		 // get route type
+		 String sModeId = feat.getProperty("MODE_ID").getValue().toString();
+		 Integer mode = SMODETOMODE.get(sModeId);
+		 if(mode==null){
+			 mode = SMODETOMODE.get(null);
+		 }
+		 
+		 int spacing = MODETOSPACING.get(mode);
+		 double speed = MODETOSPEED.get(mode);
 		 
 		 // generate route
+		 String routeId = feat.getProperty("ROUTE_ID").getValue().toString();
+		 String routeName = feat.getProperty("ROUTE_NAME").getValue().toString();
 		 Route route = new Route();
 		 route.setId( new AgencyAndId(DEFAULT_AGENCY_ID, routeId) );
 		 route.setShortName( routeName );
 		 route.setAgency(agency);
+		 route.setType(mode);
 		 queue.routes.add(route);
 		 
 		 // generate stops
+		 List<ProtoRouteStop> prss = makeProtoRouteStops( geom, spacing, routeId );
 	     Map<ProtoRouteStop,Stop> prsStops = new HashMap<ProtoRouteStop,Stop>();
 		 for(ProtoRouteStop prs : prss){
 		     // generate stops
@@ -103,6 +132,16 @@ public class Main {
 			 prsStops.put( prs, stop );
 		 }
 		 
+		makeTrip(feat, queue, prss, route, prsStops, false, speed);
+		if(BIDIRECTIONAL){
+			makeTrip(feat, queue, prss, route, prsStops, true, speed);
+		}
+		 
+	}
+
+	private static void makeTrip(Feature feat, GtfsQueue queue,
+			List<ProtoRouteStop> prss, Route route,
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed) {
 		 // generate a trip
 		 Trip trip = new Trip();
 		 trip.setRoute(route);
@@ -126,7 +165,11 @@ public class Main {
 		 double firstStopDist=0;
 		 for(int i=0; i<prss.size(); i++){
 
-			 ProtoRouteStop prs = prss.get(i); 
+			 int ix=i;
+			 if(reverse){
+				 ix = prss.size()-1-i;
+			 }
+			 ProtoRouteStop prs = prss.get(ix); 
 			 if(i==0){
 				 firstStopDist = prs.dist;
 			 }
@@ -138,53 +181,11 @@ public class Main {
 			 stoptime.setTrip(trip);
 			 stoptime.setStopSequence(i);
 			 double dist = Math.abs(prs.dist-firstStopDist);
-			 int time = (int)(dist/VEHICLE_SPEED);
+			 int time = (int)(dist/speed);
 			 stoptime.setArrivalTime(time);
 			 stoptime.setDepartureTime(time);
 			 queue.stoptimes.add(stoptime);
 			 
-		 }
-		 
-		 if(BIDIRECTIONAL){
-		     // generate a trip
-		     trip = new Trip();
-		     trip.setRoute(route);
-		     trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.trips.size())));
-		     trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID,"0"));
-		     queue.trips.add(trip);
-		     
-		     // generate a frequency
-		     freq = makeFreq(feat, 6, 9, "FRECHPM", trip);
-		     queue.frequencies.add( freq );
-		     freq = makeFreq(feat, 9, 11, "FRECEPM", trip);
-		     queue.frequencies.add( freq );
-		     freq = makeFreq(feat, 11, 13, "FRECALM", trip);
-		     queue.frequencies.add( freq );
-		     freq = makeFreq(feat, 13, 15, "FRECEPT", trip);
-		     queue.frequencies.add( freq );
-		     freq = makeFreq(feat, 15, 18, "FRECHPT", trip);
-		     queue.frequencies.add( freq );
-		     
-		     for(int i=0; i<prss.size(); i++){
-		    	 ProtoRouteStop prs = prss.get(prss.size()-1-i);
-		    	 if(i==0){
-		    		 firstStopDist = prs.dist;
-		    	 }
-		    	 Stop stop = prsStops.get(prs);
-		         
-		         // generate stoptime
-		    	 StopTime stoptime = new StopTime();
-		    	 stoptime.setStop(stop);
-		    	 stoptime.setTrip(trip);
-		    	 stoptime.setStopSequence(i);
-		    	 double dist = Math.abs(prs.dist-firstStopDist);
-		    	 int time = (int)(dist/VEHICLE_SPEED);
-		    	 stoptime.setArrivalTime(time);
-		    	 stoptime.setDepartureTime(time);
-		    	 queue.stoptimes.add(stoptime);
-		    	 
-		    	 i++;
-		     }
 		 }
 	}
 
