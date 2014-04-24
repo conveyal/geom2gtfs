@@ -34,13 +34,14 @@ public class Main {
 	static Config config;
 
 	public static void main(String[] args) throws MalformedURLException, IOException {
-		if(args.length < 2){
-    		System.out.println( "usage: cmd shapefile_fn config_fn" );
+		if(args.length < 3){
+    		System.out.println( "usage: cmd shapefile_fn config_fn output_fn" );
     		return;
 		}
 		
 		String fn = args[0];
 		String config_fn = args[1];
+		String output_fn = args[2];
 		
 		config = new Config(config_fn);
 		
@@ -66,7 +67,7 @@ public class Main {
         }
 		
 	    GtfsWriter gtfsWriter = new GtfsWriter();
-	    gtfsWriter.setOutputLocation(new File("gtfs_freq.zip"));
+	    gtfsWriter.setOutputLocation(new File(output_fn));
 	    queue.dumpToWriter( gtfsWriter );
 	    gtfsWriter.close();
 	}
