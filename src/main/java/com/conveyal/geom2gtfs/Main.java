@@ -30,49 +30,27 @@ import com.vividsolutions.jts.geom.MultiLineString;
 
 public class Main {
 
-	private static final double STOP_SPACING = 400; //meters
 	private static final String DEFAULT_AGENCY_ID = "0";
-	private static final double VEHICLE_SPEED = 5.3;
-	private static final String DEFAULT_NAME = "agency";
-	private static final String DEFAULT_AGENCY_URL = "www.example.com";
-	private static final String DEFAULT_AGENCY_TIMEZONE = "Europe/London";
-	private static final boolean BIDIRECTIONAL = false;
-	private static final HashMap<String,Integer> SMODETOMODE = new HashMap<String,Integer>();
-	private static final HashMap<Integer,Integer> MODETOSPACING = new HashMap<Integer,Integer>();
-	private static final HashMap<Integer,Double> MODETOSPEED = new HashMap<Integer,Double>();
+	static Config config;
 
 	public static void main(String[] args) throws MalformedURLException, IOException {
-		if(args.length < 1){
-    		System.out.println( "usage: cmd shapefile_fn" );
+		if(args.length < 2){
+    		System.out.println( "usage: cmd shapefile_fn config_fn" );
     		return;
 		}
 		
-		SMODETOMODE.put("1",1);
-		SMODETOMODE.put("2", 2);
-		SMODETOMODE.put("3", 0);
-		SMODETOMODE.put(null,3);
-		
-		MODETOSPACING.put(0,500);
-		MODETOSPACING.put(1,700);
-		MODETOSPACING.put(2,1500);
-		MODETOSPACING.put(3,300);
-		MODETOSPACING.put(null, 400);
-		
-		MODETOSPEED.put(0,12*0.44704);
-		MODETOSPEED.put(1, 20*0.44704);
-		MODETOSPEED.put(2, 30*0.44704);
-		MODETOSPEED.put(3, 12*0.44704);
-		MODETOSPEED.put(null, 15*0.44704);
-		
 		String fn = args[0];
+		String config_fn = args[1];
+		
+		config = new Config(config_fn);
 		
 		GtfsQueue queue = new GtfsQueue();
 		
 		Agency agency = new Agency();
 		agency.setId(DEFAULT_AGENCY_ID);
-		agency.setName(DEFAULT_NAME);
-		agency.setUrl(DEFAULT_AGENCY_URL);
-		agency.setTimezone(DEFAULT_AGENCY_TIMEZONE);
+		agency.setName( config.getAgencyName() );
+		agency.setUrl( config.getAgencyUrl() );
+		agency.setTimezone( config.getAgencyTimezone() );
 		queue.agencies.add(agency);
 
 		FeatureSource<?, ?> lines = getFeatureSource(fn);
@@ -82,7 +60,7 @@ public class Main {
         while( features.hasNext() ){
              Feature feat = (Feature) features.next();
              
-             System.out.println( "generating stops for \""+feat.getProperty("ROUTE_NAME").getValue() + "\"" );
+             System.out.println( "generating stops for \""+feat.getProperty(config.getRouteNamePropName()).getValue() + "\"" );
              
              featToGtfs(feat, queue, agency);   
         }
@@ -98,18 +76,15 @@ public class Main {
 		 MultiLineString geom = (MultiLineString) geomAttr.getValue();
 		 
 		 // get route type
-		 String sModeId = feat.getProperty("MODE_ID").getValue().toString();
-		 Integer mode = SMODETOMODE.get(sModeId);
-		 if(mode==null){
-			 mode = SMODETOMODE.get(null);
-		 }
+		 Integer mode = config.getMode( feat );
 		 
-		 int spacing = MODETOSPACING.get(mode);
-		 double speed = MODETOSPEED.get(mode);
+		 // figure out spacing and speed for mode
+		 Integer spacing = config.getSpacing( feat );
+		 Double speed = config.getSpeed( feat );
 		 
 		 // generate route
-		 String routeId = feat.getProperty("ROUTE_ID").getValue().toString();
-		 String routeName = feat.getProperty("ROUTE_NAME").getValue().toString();
+		 String routeId = feat.getProperty(config.getRouteIdPropName()).getValue().toString();
+		 String routeName = feat.getProperty(config.getRouteNamePropName()).getValue().toString();
 		 Route route = new Route();
 		 route.setId( new AgencyAndId(DEFAULT_AGENCY_ID, routeId) );
 		 route.setShortName( routeName );
@@ -133,7 +108,7 @@ public class Main {
 		 }
 		 
 		makeTrip(feat, queue, prss, route, prsStops, false, speed);
-		if(BIDIRECTIONAL){
+		if(config.isBidirectional()){
 			makeTrip(feat, queue, prss, route, prsStops, true, speed);
 		}
 		 
@@ -150,17 +125,10 @@ public class Main {
 		 queue.trips.add(trip);
 		 
 		 // generate a frequency
-		 Frequency freq;
-		 freq = makeFreq(feat, 6, 9, "FRECHPM", trip);
-		 queue.frequencies.add( freq );
-		 freq = makeFreq(feat, 9, 11, "FRECEPM", trip);
-		 queue.frequencies.add( freq );
-		 freq = makeFreq(feat, 11, 13, "FRECALM", trip);
-		 queue.frequencies.add( freq );
-		 freq = makeFreq(feat, 13, 15, "FRECEPT", trip);
-		 queue.frequencies.add( freq );
-		 freq = makeFreq(feat, 15, 18, "FRECHPT", trip);
-		 queue.frequencies.add( freq );
+		 for( ServiceWindow window : config.getServiceWindows() ){
+			 Frequency freq = makeFreq( feat, window.start, window.end, window.propName, trip );
+			 queue.frequencies.add( freq );
+		 }
 		 
 		 double firstStopDist=0;
 		 for(int i=0; i<prss.size(); i++){
@@ -194,7 +162,7 @@ public class Main {
 		double perHour;
 		double headway;
 		
-		freq = new Frequency(); // FRECHPM, am peak hour
+		freq = new Frequency();
 		freq.setStartTime(beginHour*3600);
 		freq.setEndTime(endHour*3600);
 		String perHourStr = feat.getProperty(propName).getValue().toString();

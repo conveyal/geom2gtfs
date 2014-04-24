@@ -1,0 +1,32 @@
+{
+	"agency_name":"Buenos Aires Transit",
+	"agency_url":"http://www.buenosaires.gob.ar/subte",
+	"agency_timezone":"America/Argentina/Buenos_Aires",
+	"gtfs_mode":[
+		[["MODE_ID","3"],0],
+		[["MODE_ID","1"],1],
+		[["MODE_ID","2"],2],
+		[["MODE_ID","*"],3]
+	],
+	"speed":[
+		[["MODE_ID","3"],5.4],
+		[["MODE_ID","1"],8.9],
+		[["MODE_ID","2"],13.4],
+		[["MODE_ID","*"],5.4]
+	],
+	"spacing":[
+		[["MODE_ID","3"],500],
+		[["MODE_ID","1"],700],
+		[["MODE_ID","2"],1500],
+		[["MODE_ID","*"],400]
+	],
+	"route_id_prop_name":"ROUTE_ID",
+	"route_name_prop_name":"ROUTE_NAME",
+	"service_windows":[
+		["FRECHPM",6,9],
+		["FRECEPM",9,11],
+		["FRECALM",11,13],
+		["FRECEPT",13,15],
+		["FRECHPT",15,18]	
+	]
+}
