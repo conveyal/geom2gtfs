@@ -5,3 +5,6 @@ data
 .classpath
 .gradle
 .project
+.DS_Store
+*.json
+*.zip
