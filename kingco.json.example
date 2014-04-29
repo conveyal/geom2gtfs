@@ -1,0 +1,29 @@
+{
+	"agency_name":"King County Metro",
+	"agency_url":"http://metro.kingcounty.gov/",
+	"agency_timezone":"America/Los_Angeles",
+	"gtfs_mode":3,
+	"speed":5.4,
+	"spacing":400,
+	"route_id_prop_name":"ROUTE",
+	"route_name_prop_name":"ROUTE",
+	"service_windows":[
+		["peak_am",6,9],
+		["midday",9,15],
+		["peak_pm",15,18],
+		["night",18,24],
+	],
+	"csv_join":{
+		"filename":"data/kingco/prop_freqs.csv",
+		"csv_col":"route",
+		"shp_col":"ROUTE",
+	},
+	"filters":[
+		["CATEGORY","Revised"],
+	],
+	"start_date":"20140101",
+	"end_date":"20150101",
+	"use_periods":true,
+	"wait_factor":2.5,
+	"is_bidirectional":true
+}
