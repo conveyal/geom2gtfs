@@ -28,6 +28,7 @@ import org.opengis.feature.Feature;
 import org.opengis.feature.GeometryAttribute;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
 
 public class Main {
@@ -213,6 +214,16 @@ public class Main {
 	private static List<ProtoRouteStop> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
 		List<ProtoRouteStop> ret = new ArrayList<ProtoRouteStop>();
 		
+		for(int i=0; i<geom.getNumGeometries(); i++){
+			LineString ls = (LineString)geom.getGeometryN(i);
+			makeProtoRouteStopsFromLinestring(ls, spacing, routeId, ret);
+		}
+		
+		return ret;
+	}
+
+	private static void makeProtoRouteStopsFromLinestring(LineString geom,
+			double spacing, String routeId, List<ProtoRouteStop> ret) {
 		Coordinate[] coords = geom.getCoordinates();
 		double overshot = 0;
 		double segStartDist = 0;
@@ -250,8 +261,6 @@ public class Main {
 		prs.routeId = routeId;
 		prs.dist = totalLen;
 		ret.add(prs);
-		
-		return ret;
 	}
 
 
