@@ -48,6 +48,9 @@ public class Main {
 		
 		config = new Config(config_fn);
 		
+		//check if config specifies a csv join
+		CsvJoinTable csvJoin = config.getCsvJoin();
+		
 		GtfsQueue queue = new GtfsQueue();
 		
 		ServiceCalendar cal = new ServiceCalendar();
@@ -77,9 +80,11 @@ public class Main {
         while( features.hasNext() ){
              Feature feat = (Feature) features.next();
              
+             ExtendedFeature exft = new ExtendedFeature( feat, csvJoin );
+             
              System.out.println( "generating stops for \""+feat.getProperty(config.getRouteNamePropName()).getValue() + "\"" );
              
-             featToGtfs(feat, queue, agency);   
+             featToGtfs(exft, queue, agency);   
         }
 		
 	    GtfsWriter gtfsWriter = new GtfsWriter();
@@ -88,20 +93,21 @@ public class Main {
 	    gtfsWriter.close();
 	}
 
-	private static void featToGtfs(Feature feat, GtfsQueue queue, Agency agency) {
-		GeometryAttribute geomAttr = feat.getDefaultGeometryProperty();
+	private static void featToGtfs(ExtendedFeature exft, GtfsQueue queue, Agency agency) {
+		
+		GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
 		 MultiLineString geom = (MultiLineString) geomAttr.getValue();
 		 
 		 // get route type
-		 Integer mode = config.getMode( feat );
+		 Integer mode = config.getMode( exft.feat );
 		 
 		 // figure out spacing and speed for mode
-		 Integer spacing = config.getSpacing( feat );
-		 Double speed = config.getSpeed( feat );
+		 Integer spacing = config.getSpacing( exft.feat );
+		 Double speed = config.getSpeed( exft.feat );
 		 
 		 // generate route
-		 String routeId = feat.getProperty(config.getRouteIdPropName()).getValue().toString();
-		 String routeName = feat.getProperty(config.getRouteNamePropName()).getValue().toString();
+		 String routeId = exft.getProperty(config.getRouteIdPropName());
+		 String routeName = exft.getProperty(config.getRouteNamePropName());
 		 Route route = new Route();
 		 route.setId( new AgencyAndId(DEFAULT_AGENCY_ID, routeId) );
 		 route.setShortName( routeName );
@@ -124,16 +130,16 @@ public class Main {
 			 prsStops.put( prs, stop );
 		 }
 		 
-		makeTrip(feat, queue, prss, route, prsStops, false, speed);
+		makeTrip(exft, queue, prss, route, prsStops, false, speed, config.usePeriods());
 		if(config.isBidirectional()){
-			makeTrip(feat, queue, prss, route, prsStops, true, speed);
+			makeTrip(exft, queue, prss, route, prsStops, true, speed, config.usePeriods());
 		}
 		 
 	}
 
-	private static void makeTrip(Feature feat, GtfsQueue queue,
+	private static void makeTrip(ExtendedFeature exft, GtfsQueue queue,
 			List<ProtoRouteStop> prss, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed) {
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods) {
 		 // generate a trip
 		 Trip trip = new Trip();
 		 trip.setRoute(route);
@@ -143,8 +149,10 @@ public class Main {
 		 
 		 // generate a frequency
 		 for( ServiceWindow window : config.getServiceWindows() ){
-			 Frequency freq = makeFreq( feat, window.start, window.end, window.propName, trip );
-			 queue.frequencies.add( freq );
+			 Frequency freq = makeFreq( exft, window.start, window.end, window.propName, trip, usePeriods );
+			 if(freq != null){
+				 queue.frequencies.add( freq );
+			 }
 		 }
 		 
 		 double firstStopDist=0;
@@ -174,17 +182,23 @@ public class Main {
 		 }
 	}
 
-	private static Frequency makeFreq(Feature feat, int beginHour, int endHour, String propName, Trip trip) {
+	private static Frequency makeFreq(ExtendedFeature exft, int beginHour, int endHour, String propName, Trip trip, boolean usePeriods) {
 		Frequency freq;
-		double perHour;
 		double headway;
 		
 		freq = new Frequency();
 		freq.setStartTime(beginHour*3600);
 		freq.setEndTime(endHour*3600);
-		String perHourStr = feat.getProperty(propName).getValue().toString();
-		perHour = Double.parseDouble( perHourStr ); // arrivals per hour
-		headway = 3600/perHour;
+		String freqStr = exft.getProperty(propName);
+		if(freqStr==null || freqStr.equals("None")){
+			return null;
+		}
+		if( usePeriods ){
+			headway = Double.parseDouble( freqStr )*60; //minutes to seconds
+		} else {
+			double perHour = Double.parseDouble( freqStr ); // arrivals per hour
+			headway = 3600/perHour;
+		}
 		freq.setHeadwaySecs((int) headway);
 		
 		freq.setTrip( trip );

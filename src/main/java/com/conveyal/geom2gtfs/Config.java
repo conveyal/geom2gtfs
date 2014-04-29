@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -16,7 +17,8 @@ import org.opengis.feature.Feature;
 
 public class Config {
 	
-	JSONObject data; 
+	JSONObject data;
+	private boolean DEFAULT_USE_PERIODS = false; 
 
 	public Config(String config_fn) throws IOException {
 		File ff = new File(config_fn);
@@ -49,7 +51,13 @@ public class Config {
 	}
 
 	public Integer getMode(Feature feat) {
-		JSONArray gtfsModeFilters = data.getJSONArray("gtfs_mode");
+		Object modeObj = data.get("gtfs_mode");
+		if( Integer.class.isInstance( modeObj) ){
+			return (Integer)modeObj;
+		}
+		
+		// else it should be an array;
+		JSONArray gtfsModeFilters = (JSONArray)modeObj;
 		
 		for(int i=0; i<gtfsModeFilters.length(); i++){
 			JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
@@ -72,7 +80,12 @@ public class Config {
 	}
 
 	public Integer getSpacing(Feature feat) {
-		JSONArray gtfsModeFilters = data.getJSONArray("spacing");
+		Object spacingObj = data.get("spacing");
+		if(Integer.class.isInstance(spacingObj)){
+			return (Integer)spacingObj;
+		}
+		
+		JSONArray gtfsModeFilters = (JSONArray)spacingObj;
 		
 		for(int i=0; i<gtfsModeFilters.length(); i++){
 			JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
@@ -95,7 +108,12 @@ public class Config {
 	}
 
 	public Double getSpeed(Feature feat) {
-		JSONArray gtfsModeFilters = data.getJSONArray("speed");
+		Object speedObj = data.get("speed");
+		if(Double.class.isInstance(speedObj)){
+			return (Double)speedObj;
+		}
+		
+		JSONArray gtfsModeFilters = (JSONArray)speedObj;
 		
 		for(int i=0; i<gtfsModeFilters.length(); i++){
 			JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
@@ -175,6 +193,27 @@ public class Config {
 		ret.set(Calendar.MONTH, Integer.parseInt( startDateStr.substring(4,6) ));
 		ret.set(Calendar.DAY_OF_MONTH, Integer.parseInt( startDateStr.substring(6) ));
 		return ret.getTime();
+	}
+
+	public CsvJoinTable getCsvJoin() throws IOException {
+		try{
+			JSONObject obj = data.getJSONObject("csv_join");
+			String filename = obj.getString("filename");
+			String csvCol = obj.getString( "csv_col" );
+			String shpCol = obj.getString( "shp_col" );
+			
+			return new CsvJoinTable( filename, csvCol, shpCol );
+		} catch( JSONException ex ){
+			return null;
+		}
+	}
+
+	public boolean usePeriods() {
+		try{
+			return data.getBoolean("use_periods");
+		} catch (JSONException ex){
+			return DEFAULT_USE_PERIODS;
+		}
 	}
 
 }
