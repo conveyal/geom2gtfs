@@ -135,16 +135,16 @@ public class Main {
 			 prsStops.put( prs, stop );
 		 }
 		 
-		makeTrip(exft, queue, prss, route, prsStops, false, speed, config.usePeriods());
+		makeTrip(exft, queue, prss, route, prsStops, false, speed, config.usePeriods(), config.waitFactor());
 		if(config.isBidirectional()){
-			makeTrip(exft, queue, prss, route, prsStops, true, speed, config.usePeriods());
+			makeTrip(exft, queue, prss, route, prsStops, true, speed, config.usePeriods(), config.waitFactor());
 		}
 		 
 	}
 
 	private static void makeTrip(ExtendedFeature exft, GtfsQueue queue,
 			List<ProtoRouteStop> prss, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods) {
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods, double waitFactor) {
 		 // generate a trip
 		 Trip trip = new Trip();
 		 trip.setRoute(route);
@@ -154,7 +154,7 @@ public class Main {
 		 
 		 // generate a frequency
 		 for( ServiceWindow window : config.getServiceWindows() ){
-			 Frequency freq = makeFreq( exft, window.start, window.end, window.propName, trip, usePeriods );
+			 Frequency freq = makeFreq( exft, window.start, window.end, window.propName, trip, usePeriods, waitFactor );
 			 if(freq != null){
 				 queue.frequencies.add( freq );
 			 }
@@ -187,7 +187,7 @@ public class Main {
 		 }
 	}
 
-	private static Frequency makeFreq(ExtendedFeature exft, int beginHour, int endHour, String propName, Trip trip, boolean usePeriods) {
+	private static Frequency makeFreq(ExtendedFeature exft, int beginHour, int endHour, String propName, Trip trip, boolean usePeriods, double waitFactor) {
 		Frequency freq;
 		double headway;
 		
@@ -204,7 +204,7 @@ public class Main {
 			double perHour = Double.parseDouble( freqStr ); // arrivals per hour
 			headway = 3600/perHour;
 		}
-		freq.setHeadwaySecs((int) headway);
+		freq.setHeadwaySecs((int) (headway/waitFactor));
 		
 		freq.setTrip( trip );
 		 

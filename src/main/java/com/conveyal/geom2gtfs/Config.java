@@ -7,18 +7,17 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.opengis.feature.Feature;
 
 public class Config {
 	
 	JSONObject data;
-	private boolean DEFAULT_USE_PERIODS = false; 
+	private boolean DEFAULT_USE_PERIODS = false;
+	private double DEFAULT_WAIT_FACTOR = 1.0; 
 
 	public Config(String config_fn) throws IOException {
 		File ff = new File(config_fn);
@@ -236,6 +235,14 @@ public class Config {
 		}
 		
 		return true;
+	}
+
+	public double waitFactor() {
+		try{
+			return data.getDouble("wait_factor");
+		} catch (JSONException ex){
+			return DEFAULT_WAIT_FACTOR  ;
+		}
 	}
 
 }
