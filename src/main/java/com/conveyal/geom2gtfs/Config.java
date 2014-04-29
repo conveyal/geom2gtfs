@@ -216,4 +216,26 @@ public class Config {
 		}
 	}
 
+	public boolean passesFilter(ExtendedFeature exft) {
+		JSONArray filters;
+		try{
+			filters = data.getJSONArray("filters");
+		} catch (JSONException ex){
+			return true;
+		}
+		
+		for(int i=0; i<filters.length(); i++){
+			JSONArray filter = filters.getJSONArray(i);
+			String propName = filter.getString(0);
+			String acceptable = filter.getString(1);
+			
+			String val = exft.getProperty(propName);
+			if(!val.equals(acceptable)){
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
 }

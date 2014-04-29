@@ -82,6 +82,10 @@ public class Main {
              
              ExtendedFeature exft = new ExtendedFeature( feat, csvJoin );
              
+             if(!config.passesFilter(exft) ){
+            	 continue;
+             }
+             
              System.out.println( "generating stops for \""+feat.getProperty(config.getRouteNamePropName()).getValue() + "\"" );
              
              featToGtfs(exft, queue, agency);   
