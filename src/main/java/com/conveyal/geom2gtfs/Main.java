@@ -35,9 +35,10 @@ public class Main {
 
 	private static final String DEFAULT_AGENCY_ID = "0";
 	private static final String DEFAULT_CAL_ID = "0";
+	private static final boolean FAIL_ON_MULTILINESTRING = true;
 	static Config config;
 
-	public static void main(String[] args) throws MalformedURLException, IOException {
+	public static void main(String[] args) throws Exception {
 		if(args.length < 3){
     		System.out.println( "usage: cmd shapefile_fn config_fn output_fn" );
     		return;
@@ -98,7 +99,7 @@ public class Main {
 	    gtfsWriter.close();
 	}
 
-	private static void featToGtfs(ExtendedFeature exft, GtfsQueue queue, Agency agency) {
+	private static void featToGtfs(ExtendedFeature exft, GtfsQueue queue, Agency agency) throws Exception {
 		
 		GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
 		 MultiLineString geom = (MultiLineString) geomAttr.getValue();
@@ -121,24 +122,31 @@ public class Main {
 		 queue.routes.add(route);
 		 
 		 // generate stops
-		 List<ProtoRouteStop> prss = makeProtoRouteStops( geom, spacing, routeId );
-	     Map<ProtoRouteStop,Stop> prsStops = new HashMap<ProtoRouteStop,Stop>();
-		 for(ProtoRouteStop prs : prss){
-		     // generate stops
-			 Stop stop = new Stop();
-			 stop.setLat(prs.coord.y);
-			 stop.setLon(prs.coord.x);
-			 stop.setId( new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.stops.size())) );
-			 stop.setName( String.valueOf(queue.stops.size()) );
-			 queue.stops.add(stop);
-			 
-			 prsStops.put( prs, stop );
+		 List<List<ProtoRouteStop>> prsss = makeProtoRouteStops( geom, spacing, routeId );
+		 
+		 if(FAIL_ON_MULTILINESTRING && prsss.size()>1){
+			 throw new Exception("Features may only contain a single linestring.");
 		 }
 		 
-		makeTrip(exft, queue, prss, route, prsStops, false, speed, config.usePeriods(), config.waitFactor());
-		if(config.isBidirectional()){
-			makeTrip(exft, queue, prss, route, prsStops, true, speed, config.usePeriods(), config.waitFactor());
-		}
+		 for( List<ProtoRouteStop> prss : prsss ){
+		     Map<ProtoRouteStop,Stop> prsStops = new HashMap<ProtoRouteStop,Stop>();
+			 for(ProtoRouteStop prs : prss){
+			     // generate stops
+				 Stop stop = new Stop();
+				 stop.setLat(prs.coord.y);
+				 stop.setLon(prs.coord.x);
+				 stop.setId( new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.stops.size())) );
+				 stop.setName( String.valueOf(queue.stops.size()) );
+				 queue.stops.add(stop);
+				 
+				 prsStops.put( prs, stop );
+			 }
+			 
+			makeTrip(exft, queue, prss, route, prsStops, false, speed, config.usePeriods(), config.waitFactor());
+			if(config.isBidirectional()){
+				makeTrip(exft, queue, prss, route, prsStops, true, speed, config.usePeriods(), config.waitFactor());
+			}
+		 }
 		 
 	}
 
@@ -198,12 +206,17 @@ public class Main {
 		if(freqStr==null || freqStr.equals("None")){
 			return null;
 		}
+		Double freqDbl = Double.parseDouble( freqStr );
+		if(freqDbl==0.0){
+			return null;
+		}
 		if( usePeriods ){
 			headway = Double.parseDouble( freqStr )*60; //minutes to seconds
 		} else {
 			double perHour = Double.parseDouble( freqStr ); // arrivals per hour
 			headway = 3600/perHour;
 		}
+		
 		freq.setHeadwaySecs((int) (headway/waitFactor));
 		
 		freq.setTrip( trip );
@@ -211,19 +224,22 @@ public class Main {
 		return freq;
 	}
 	
-	private static List<ProtoRouteStop> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
-		List<ProtoRouteStop> ret = new ArrayList<ProtoRouteStop>();
+	private static List<List<ProtoRouteStop>> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
+		List<List<ProtoRouteStop>> ret = new ArrayList<List<ProtoRouteStop>>();
 		
 		for(int i=0; i<geom.getNumGeometries(); i++){
 			LineString ls = (LineString)geom.getGeometryN(i);
-			makeProtoRouteStopsFromLinestring(ls, spacing, routeId, ret);
+			List<ProtoRouteStop> substr = makeProtoRouteStopsFromLinestring(ls, spacing, routeId);
+			ret.add( substr );
 		}
 		
 		return ret;
 	}
 
-	private static void makeProtoRouteStopsFromLinestring(LineString geom,
-			double spacing, String routeId, List<ProtoRouteStop> ret) {
+	private static List<ProtoRouteStop> makeProtoRouteStopsFromLinestring(LineString geom,
+			double spacing, String routeId) {
+		List<ProtoRouteStop> ret = new ArrayList<ProtoRouteStop>();
+		
 		Coordinate[] coords = geom.getCoordinates();
 		double overshot = 0;
 		double segStartDist = 0;
@@ -261,6 +277,8 @@ public class Main {
 		prs.routeId = routeId;
 		prs.dist = totalLen;
 		ret.add(prs);
+		
+		return ret;
 	}
 
 

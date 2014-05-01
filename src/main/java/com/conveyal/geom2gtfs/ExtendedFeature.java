@@ -12,19 +12,27 @@ public class ExtendedFeature {
 
 	public ExtendedFeature(Feature feat, CsvJoinTable csvJoin) {
 		this.feat = feat;
-		this.extraFields = csvJoin.getExtraFields( feat );
+		if( csvJoin != null ){
+			this.extraFields = csvJoin.getExtraFields( feat );
+		} else {
+			this.extraFields = null;
+		}
 	}
 
 	public String getProperty(String key) {
-		String ret = extraFields.get(key);
-		if(ret==null){
-			Property prop = feat.getProperty(key);
-			if(prop==null){
-				return null;
+		if( extraFields != null){
+			String ret = extraFields.get(key);
+			if(ret != null){
+				return ret;
 			}
-			ret = prop.getValue().toString();
 		}
-		return ret;
+		
+		Property prop = feat.getProperty(key);
+		if(prop==null){
+			return null;
+		}
+		return prop.getValue().toString();
+
 	}
 
 }
