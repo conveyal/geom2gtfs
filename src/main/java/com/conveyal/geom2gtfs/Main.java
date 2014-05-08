@@ -164,30 +164,30 @@ public class Main {
 	}
 
 	private static void makeTimetableTrips(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean b, Double speed, boolean usePeriods) {
-//		// for each window
-//		for (ServiceWindow window : config.getServiceWindows()) {
-//			Double headway = getHeadway(exft, window.propName, usePeriods);
-//			if(headway==null){
-//				continue;
-//			}
-//			
-//			// generate a series of trips
-//			for(int t=window.startSecs(); t<window.endSecs(); t+=headway){
-//				
-//			}
-//		}
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, Double speed, boolean usePeriods) {
+		// for each window
+		for (ServiceWindow window : config.getServiceWindows()) {
+			Double headway = getHeadway(exft, window.propName, usePeriods);
+			if(headway==null){
+				continue;
+			}
+			
+			// generate a series of trips
+			for(int t=window.startSecs(); t<window.endSecs(); t+=headway){
+				Trip trip = makeNewTrip(route);
+				queue.trips.add(trip);
+				
+				List<StopTime> stopTimes = createStopTimes(prss, prsStops, reverse, speed, trip, t);
+				queue.stoptimes.addAll(stopTimes);
+			}
+		}
 		
-		throw new UnsupportedOperationException("can'd do this yet");
 	}
 
 	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
 			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods) {
 		// generate a trip
-		Trip trip = new Trip();
-		trip.setRoute(route);
-		trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.trips.size())));
-		trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID, DEFAULT_CAL_ID));
+		Trip trip = makeNewTrip(route);
 		queue.trips.add(trip);
 
 		// generate a frequency
@@ -203,6 +203,27 @@ public class Main {
 			queue.frequencies.add(freq);
 		}
 
+		List<StopTime> newStopTimes = createStopTimes(prss, prsStops, reverse, speed, trip);
+		
+		queue.stoptimes.addAll(newStopTimes);
+		
+	}
+
+	private static Trip makeNewTrip(Route route) {
+		Trip trip = new Trip();
+		trip.setRoute(route);
+		trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.trips.size())));
+		trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID, DEFAULT_CAL_ID));
+		return trip;
+	}
+	
+	private static List<StopTime> createStopTimes(List<ProtoRouteStop> prss, Map<ProtoRouteStop, Stop> prsStops,
+			boolean reverse, double speed, Trip trip) {
+		return createStopTimes(prss, prsStops, reverse, speed, trip, 0);
+	}
+
+	private static List<StopTime> createStopTimes(List<ProtoRouteStop> prss, Map<ProtoRouteStop, Stop> prsStops,
+			boolean reverse, double speed, Trip trip, int tripStart) {
 		List<StopTime> newStopTimes = new ArrayList<StopTime>();
 		double firstStopDist = 0;
 		for (int i = 0; i < prss.size(); i++) {
@@ -223,16 +244,14 @@ public class Main {
 			stoptime.setTrip(trip);
 			stoptime.setStopSequence(i);
 			double dist = Math.abs(prs.dist - firstStopDist);
-			int time = (int) (dist / speed);
+			int time = (int) (dist / speed) + tripStart;
 			stoptime.setArrivalTime(time);
 			stoptime.setDepartureTime(time);
 			
 			newStopTimes.add(stoptime);
 			
 		}
-		
-		queue.stoptimes.addAll(newStopTimes);
-		
+		return newStopTimes;
 	}
 
 	private static Frequency makeFreq(double headway, int beginSecs, int endSecs, Trip trip) {
