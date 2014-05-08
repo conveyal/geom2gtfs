@@ -17,7 +17,8 @@ public class Config {
 	
 	JSONObject data;
 	private boolean DEFAULT_USE_PERIODS = false;
-	private double DEFAULT_WAIT_FACTOR = 1.0; 
+	private double DEFAULT_WAIT_FACTOR = 1.0;
+	private boolean DEFAULT_EXACT = false; 
 
 	public Config(String config_fn) throws IOException {
 		File ff = new File(config_fn);
@@ -167,8 +168,8 @@ public class Config {
 			
 			ServiceWindow sw = new ServiceWindow();
 			sw.propName = jWindow.getString(0);
-			sw.start = jWindow.getInt(1);
-			sw.end = jWindow.getInt(2);
+			sw.setStartHour( jWindow.getInt(1) );
+			sw.setEndHour( jWindow.getInt(2) );
 			
 			ret.add(sw);
 		}
@@ -242,6 +243,14 @@ public class Config {
 			return data.getDouble("wait_factor");
 		} catch (JSONException ex){
 			return DEFAULT_WAIT_FACTOR  ;
+		}
+	}
+
+	public boolean isExact() {
+		try{
+			return data.getBoolean("exact");
+		} catch (JSONException ex){
+			return DEFAULT_EXACT   ;
 		}
 	}
 

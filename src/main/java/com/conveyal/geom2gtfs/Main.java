@@ -145,16 +145,44 @@ public class Main {
 				prsStops.put(prs, stop);
 			}
 
-			makeFrequencyTrip(exft, prss, route, prsStops, false, speed, config.usePeriods(), config.waitFactor());
-			if (config.isBidirectional()) {
-				makeFrequencyTrip(exft, prss, route, prsStops, true, speed, config.usePeriods(), config.waitFactor());
+			
+			
+			
+			if( !config.isExact() ){
+				makeFrequencyTrip(exft, prss, route, prsStops, false, speed, config.usePeriods());
+				if (config.isBidirectional()) {
+					makeFrequencyTrip(exft, prss, route, prsStops, true, speed, config.usePeriods());
+				}
+			} else {
+				makeTimetableTrips(exft, prss, route, prsStops, false, speed, config.usePeriods());
+				if (config.isBidirectional()) {
+					makeTimetableTrips(exft, prss, route, prsStops, true, speed, config.usePeriods());
+				}
 			}
 		}
 
 	}
 
+	private static void makeTimetableTrips(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
+			Map<ProtoRouteStop, Stop> prsStops, boolean b, Double speed, boolean usePeriods) {
+//		// for each window
+//		for (ServiceWindow window : config.getServiceWindows()) {
+//			Double headway = getHeadway(exft, window.propName, usePeriods);
+//			if(headway==null){
+//				continue;
+//			}
+//			
+//			// generate a series of trips
+//			for(int t=window.startSecs(); t<window.endSecs(); t+=headway){
+//				
+//			}
+//		}
+		
+		throw new UnsupportedOperationException("can'd do this yet");
+	}
+
 	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods, double waitFactor) {
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods) {
 		// generate a trip
 		Trip trip = new Trip();
 		trip.setRoute(route);
@@ -164,12 +192,18 @@ public class Main {
 
 		// generate a frequency
 		for (ServiceWindow window : config.getServiceWindows()) {
-			Frequency freq = makeFreq(exft, window.start, window.end, window.propName, trip, usePeriods, waitFactor);
-			if (freq != null) {
-				queue.frequencies.add(freq);
+			Double headway = getHeadway(exft, window.propName, usePeriods);
+			if(headway==null){
+				continue;
 			}
+			
+			headway /= config.waitFactor();
+			
+			Frequency freq = makeFreq(headway, window.startSecs(), window.endSecs(), trip);
+			queue.frequencies.add(freq);
 		}
 
+		List<StopTime> newStopTimes = new ArrayList<StopTime>();
 		double firstStopDist = 0;
 		for (int i = 0; i < prss.size(); i++) {
 
@@ -192,19 +226,31 @@ public class Main {
 			int time = (int) (dist / speed);
 			stoptime.setArrivalTime(time);
 			stoptime.setDepartureTime(time);
-			queue.stoptimes.add(stoptime);
-
+			
+			newStopTimes.add(stoptime);
+			
 		}
+		
+		queue.stoptimes.addAll(newStopTimes);
+		
 	}
 
-	private static Frequency makeFreq(ExtendedFeature exft, int beginHour, int endHour, String propName, Trip trip,
-			boolean usePeriods, double waitFactor) {
+	private static Frequency makeFreq(double headway, int beginSecs, int endSecs, Trip trip) {
 		Frequency freq;
-		double headway;
 
 		freq = new Frequency();
-		freq.setStartTime(beginHour * 3600);
-		freq.setEndTime(endHour * 3600);
+		freq.setStartTime(beginSecs);
+		freq.setEndTime(endSecs);
+
+		freq.setHeadwaySecs((int) (headway));
+
+		freq.setTrip(trip);
+
+		return freq;
+	}
+
+	private static Double getHeadway(ExtendedFeature exft, String propName, boolean usePeriods) {
+		double headway;
 		String freqStr = exft.getProperty(propName);
 		if (freqStr == null || freqStr.equals("None")) {
 			return null;
@@ -219,12 +265,7 @@ public class Main {
 			double perHour = Double.parseDouble(freqStr); // arrivals per hour
 			headway = 3600 / perHour;
 		}
-
-		freq.setHeadwaySecs((int) (headway / waitFactor));
-
-		freq.setTrip(trip);
-
-		return freq;
+		return headway;
 	}
 
 	private static List<List<ProtoRouteStop>> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
