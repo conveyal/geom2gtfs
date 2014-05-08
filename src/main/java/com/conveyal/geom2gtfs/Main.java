@@ -145,15 +145,15 @@ public class Main {
 				prsStops.put(prs, stop);
 			}
 
-			makeTrip(exft, prss, route, prsStops, false, speed, config.usePeriods(), config.waitFactor());
+			makeFrequencyTrip(exft, prss, route, prsStops, false, speed, config.usePeriods(), config.waitFactor());
 			if (config.isBidirectional()) {
-				makeTrip(exft, prss, route, prsStops, true, speed, config.usePeriods(), config.waitFactor());
+				makeFrequencyTrip(exft, prss, route, prsStops, true, speed, config.usePeriods(), config.waitFactor());
 			}
 		}
 
 	}
 
-	private static void makeTrip(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
+	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
 			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods, double waitFactor) {
 		// generate a trip
 		Trip trip = new Trip();
