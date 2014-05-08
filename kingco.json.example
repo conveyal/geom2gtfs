@@ -19,11 +19,12 @@
 		"shp_col":"ROUTE",
 	},
 	"filters":[
-		["CATEGORY","Revised"],
+		["CATEGORY","topo"],
 	],
 	"start_date":"20140101",
 	"end_date":"20150101",
 	"use_periods":true,
 	"wait_factor":2.5,
-	"is_bidirectional":true
+	"is_bidirectional":true,
+	"exact":true
 }
