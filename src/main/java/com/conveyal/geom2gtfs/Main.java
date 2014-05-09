@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +88,8 @@ public class Main {
 		
 		extFeatures = filterFeatures( extFeatures );
 		
+		Map<String, List<ExtendedFeature>> featureGroups = groupFeatures( extFeatures );
+		
 		for( ExtendedFeature exft : extFeatures ){
 
 			System.out.println("generating elements for \"" + exft.getProperty(config.getRouteNamePropName())
@@ -100,6 +104,53 @@ public class Main {
 		queue.dumpToWriter(gtfsWriter);
 		gtfsWriter.close();
 		System.out.println( "done" );
+	}
+
+	private static Map<String, List<ExtendedFeature>> groupFeatures(List<ExtendedFeature> extFeatures) {
+		Map<String, List<ExtendedFeature>> ret = new HashMap<String, List<ExtendedFeature>>();
+		
+		// gather by route id
+		for( ExtendedFeature exft : extFeatures ){
+			String id = exft.getProperty( config.getRouteIdPropName() );
+			
+			List<ExtendedFeature> group = ret.get(id);
+			if(group==null){
+				group = new ArrayList<ExtendedFeature>();
+				ret.put(id, group);
+			}
+			
+			group.add(exft);
+		}
+		
+		// order each group by segment
+		for( List<ExtendedFeature> group : ret.values() ){
+			Collections.sort(group, new Comparator<ExtendedFeature>(){
+
+				@Override
+				public int compare(ExtendedFeature o1, ExtendedFeature o2) {
+					String segStr1 = o1.getProperty("segment");
+					Integer seg1;
+					try{
+						seg1 = Integer.parseInt(segStr1);
+					} catch (NumberFormatException ex){
+						seg1 = 0;
+					}
+					
+					String segStr2 = o2.getProperty("segment");
+					Integer seg2;
+					try{
+						seg2 = Integer.parseInt(segStr2);
+					} catch (NumberFormatException ex){
+						seg2 = 0;
+					}
+					
+					return seg1-seg2;
+				}
+				
+			});
+		}
+		
+		return ret;
 	}
 
 	private static List<ExtendedFeature> filterFeatures(List<ExtendedFeature> extFeatures) {
