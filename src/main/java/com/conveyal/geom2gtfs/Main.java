@@ -81,25 +81,51 @@ public class Main {
 
 		FeatureCollection<?, ?> featCol = lines.getFeatures();
 		FeatureIterator<?> features = featCol.features();
-		while (features.hasNext()) {
-			Feature feat = (Feature) features.next();
+		
+		List<ExtendedFeature> extFeatures = joinFeatures( features, csvJoin );
+		
+		extFeatures = filterFeatures( extFeatures );
+		
+		for( ExtendedFeature exft : extFeatures ){
 
-			ExtendedFeature exft = new ExtendedFeature(feat, csvJoin);
-
-			if (!config.passesFilter(exft)) {
-				continue;
-			}
-
-			System.out.println("generating stops for \"" + feat.getProperty(config.getRouteNamePropName()).getValue()
+			System.out.println("generating elements for \"" + exft.getProperty(config.getRouteNamePropName())
 					+ "\"");
 
 			featToGtfs(exft, agency);
 		}
 
+		System.out.println( "writing to "+output_fn );
 		GtfsWriter gtfsWriter = new GtfsWriter();
 		gtfsWriter.setOutputLocation(new File(output_fn));
 		queue.dumpToWriter(gtfsWriter);
 		gtfsWriter.close();
+		System.out.println( "done" );
+	}
+
+	private static List<ExtendedFeature> filterFeatures(List<ExtendedFeature> extFeatures) {
+		List<ExtendedFeature> ret = new ArrayList<ExtendedFeature>();
+		
+		for( ExtendedFeature exft : extFeatures ){
+			if (config.passesFilter(exft)) {
+				ret.add(exft);
+			}
+		}
+		
+		return ret;
+	}
+
+	private static List<ExtendedFeature> joinFeatures(FeatureIterator<?> features, CsvJoinTable csvJoin) {
+		List<ExtendedFeature> ret = new ArrayList<ExtendedFeature>();
+		
+		while (features.hasNext()) {
+			Feature feat = (Feature) features.next();
+
+			ExtendedFeature exft = new ExtendedFeature(feat, csvJoin);
+			
+			ret.add( exft );
+		}
+		
+		return ret;
 	}
 
 	private static void featToGtfs(ExtendedFeature exft, Agency agency) throws Exception {
