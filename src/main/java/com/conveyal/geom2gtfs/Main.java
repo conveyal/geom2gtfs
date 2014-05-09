@@ -90,12 +90,14 @@ public class Main {
 		
 		Map<String, List<ExtendedFeature>> featureGroups = groupFeatures( extFeatures );
 		
-		for( ExtendedFeature exft : extFeatures ){
+		for( List<ExtendedFeature> group : featureGroups.values() ){
+			
+			ExtendedFeature exemplar = group.get(0);
 
-			System.out.println("generating elements for \"" + exft.getProperty(config.getRouteNamePropName())
+			System.out.println("generating elements for \"" + exemplar.getProperty(config.getRouteNamePropName())
 					+ "\"");
 
-			featToGtfs(exft, agency);
+			featToGtfs(group, agency);
 		}
 
 		System.out.println( "writing to "+output_fn );
@@ -179,38 +181,39 @@ public class Main {
 		return ret;
 	}
 
-	private static void featToGtfs(ExtendedFeature exft, Agency agency) throws Exception {
-
-		GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
-		MultiLineString geom = (MultiLineString) geomAttr.getValue();
+	private static void featToGtfs(List<ExtendedFeature> group, Agency agency) throws Exception {
+		
+		ExtendedFeature exemplar = group.get(0);
 
 		// get route type
-		Integer mode = config.getMode(exft.feat);
-
-		// figure out spacing and speed for mode
-		Integer spacing = config.getSpacing(exft.feat);
-		Double speed = config.getSpeed(exft.feat);
+		Integer mode = config.getMode(exemplar);
 
 		// generate route
-		String routeId = exft.getProperty(config.getRouteIdPropName());
-		String routeName = exft.getProperty(config.getRouteNamePropName());
+		String routeId = exemplar.getProperty(config.getRouteIdPropName());
+		String routeName = exemplar.getProperty(config.getRouteNamePropName());
 		Route route = new Route();
 		route.setId(new AgencyAndId(DEFAULT_AGENCY_ID, routeId));
 		route.setShortName(routeName);
 		route.setAgency(agency);
 		route.setType(mode);
 		queue.routes.add(route);
-
-		// generate stops
-		List<List<ProtoRouteStop>> prsss = makeProtoRouteStops(geom, spacing, routeId);
-
-		if (FAIL_ON_MULTILINESTRING && prsss.size() > 1) {
-			throw new Exception("Features may only contain a single linestring.");
+		
+		List<ProtoRoute> protoRoutes = new ArrayList<ProtoRoute>();
+		for(ExtendedFeature exft : group){
+			// figure out spacing and speed for mode
+			Integer spacing = config.getSpacing(exft);
+			Double speed = config.getSpeed(exft);
+			
+			GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
+			MultiLineString geom = (MultiLineString) geomAttr.getValue();
+	
+			ProtoRoute protoroute = makeProtoRouteStops(geom, spacing, speed, routeId);
+			protoRoutes.add( protoroute );
 		}
 
-		for (List<ProtoRouteStop> prss : prsss) {
-			Map<ProtoRouteStop, Stop> prsStops = new HashMap<ProtoRouteStop, Stop>();
-			for (ProtoRouteStop prs : prss) {
+		Map<ProtoRouteStop, Stop> prsStops = new HashMap<ProtoRouteStop, Stop>();
+		for(ProtoRoute protoroute : protoRoutes ){
+			for (ProtoRouteStop prs : protoroute.ret) {
 				// generate stops
 				Stop stop = new Stop();
 				stop.setLat(prs.coord.y);
@@ -218,30 +221,27 @@ public class Main {
 				stop.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.stops.size())));
 				stop.setName(String.valueOf(queue.stops.size()));
 				queue.stops.add(stop);
-
+	
 				prsStops.put(prs, stop);
 			}
-
-			
-			
-			
-			if( !config.isExact() ){
-				makeFrequencyTrip(exft, prss, route, prsStops, false, speed, config.usePeriods());
-				if (config.isBidirectional()) {
-					makeFrequencyTrip(exft, prss, route, prsStops, true, speed, config.usePeriods());
-				}
-			} else {
-				makeTimetableTrips(exft, prss, route, prsStops, false, speed, config.usePeriods());
-				if (config.isBidirectional()) {
-					makeTimetableTrips(exft, prss, route, prsStops, true, speed, config.usePeriods());
-				}
+		}
+		
+		if( !config.isExact() ){
+			makeFrequencyTrip(exemplar, protoRoutes, route, prsStops, false, config.usePeriods());
+			if (config.isBidirectional()) {
+				makeFrequencyTrip(exemplar, protoRoutes, route, prsStops, true, config.usePeriods());
+			}
+		} else {
+			makeTimetableTrips(exemplar, protoRoutes, route, prsStops, false, config.usePeriods());
+			if (config.isBidirectional()) {
+				makeTimetableTrips(exemplar, protoRoutes, route, prsStops, true, config.usePeriods());
 			}
 		}
 
 	}
 
-	private static void makeTimetableTrips(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, Double speed, boolean usePeriods) {
+	private static void makeTimetableTrips(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) {
 		// for each window
 		for (ServiceWindow window : config.getServiceWindows()) {
 			Double headway = getHeadway(exft, window.propName, usePeriods);
@@ -251,20 +251,35 @@ public class Main {
 			
 			// generate a series of trips
 			for(int t=window.startSecs(); t<window.endSecs(); t+=headway){
-				Trip trip = makeNewTrip(route);
+				Trip trip = makeNewTrip(route, reverse);
 				queue.trips.add(trip);
 				
-				List<StopTime> stopTimes = createStopTimes(prss, prsStops, reverse, speed, trip, t);
+				int segStart = t;
+				List<StopTime> stopTimes = new ArrayList<StopTime>();
+				
+				for(int i=0; i<protoRoutes.size(); i++){
+					int index=i;
+					if(reverse)
+						index = protoRoutes.size()-1-i;
+					
+					ProtoRoute protoRoute = protoRoutes.get(index);
+					
+					List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart);
+					stopTimes.addAll(segStopTimes);
+					segStart += protoRoute.getDuration();
+				}
+
+				
 				queue.stoptimes.addAll(stopTimes);
 			}
 		}
 		
 	}
 
-	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRouteStop> prss, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, double speed, boolean usePeriods) {
+	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) {
 		// generate a trip
-		Trip trip = makeNewTrip(route);
+		Trip trip = makeNewTrip(route, reverse);
 		queue.trips.add(trip);
 
 		// generate a frequency
@@ -280,23 +295,29 @@ public class Main {
 			queue.frequencies.add(freq);
 		}
 
-		List<StopTime> newStopTimes = createStopTimes(prss, prsStops, reverse, speed, trip);
-		
+		int segStart = 0;
+		List<StopTime> newStopTimes = new ArrayList<StopTime>();
+		for( ProtoRoute protoRoute : protoRoutes ){
+			List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart);
+			newStopTimes.addAll(segStopTimes);
+			segStart += protoRoute.getDuration();
+		}
+				
 		queue.stoptimes.addAll(newStopTimes);
 		
 	}
 
-	private static Trip makeNewTrip(Route route) {
+	private static Trip makeNewTrip(Route route, boolean reverse) {
 		Trip trip = new Trip();
 		trip.setRoute(route);
 		trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.trips.size())));
 		trip.setServiceId(new AgencyAndId(DEFAULT_AGENCY_ID, DEFAULT_CAL_ID));
+		if(reverse){
+			trip.setDirectionId("1");
+		} else {
+			trip.setDirectionId("0");
+		}
 		return trip;
-	}
-	
-	private static List<StopTime> createStopTimes(List<ProtoRouteStop> prss, Map<ProtoRouteStop, Stop> prsStops,
-			boolean reverse, double speed, Trip trip) {
-		return createStopTimes(prss, prsStops, reverse, speed, trip, 0);
 	}
 
 	private static List<StopTime> createStopTimes(List<ProtoRouteStop> prss, Map<ProtoRouteStop, Stop> prsStops,
@@ -364,21 +385,20 @@ public class Main {
 		return headway;
 	}
 
-	private static List<List<ProtoRouteStop>> makeProtoRouteStops(MultiLineString geom, double spacing, String routeId) {
-		List<List<ProtoRouteStop>> ret = new ArrayList<List<ProtoRouteStop>>();
-
-		for (int i = 0; i < geom.getNumGeometries(); i++) {
-			LineString ls = (LineString) geom.getGeometryN(i);
-			List<ProtoRouteStop> substr = makeProtoRouteStopsFromLinestring(ls, spacing, routeId);
-			ret.add(substr);
+	private static ProtoRoute makeProtoRouteStops(MultiLineString geom, double spacing, double speed, String routeId) throws Exception {
+		if (FAIL_ON_MULTILINESTRING && geom.getNumGeometries() > 1) {
+			throw new Exception("Features may only contain a single linestring.");
 		}
-
+		
+		LineString ls = (LineString) geom.getGeometryN(0);
+		ProtoRoute ret = makeProtoRouteStopsFromLinestring(ls, spacing, routeId);
+		ret.speed = speed;
 		return ret;
 	}
 
-	private static List<ProtoRouteStop> makeProtoRouteStopsFromLinestring(LineString geom, double spacing,
+	private static ProtoRoute makeProtoRouteStopsFromLinestring(LineString geom, double spacing,
 			String routeId) {
-		List<ProtoRouteStop> ret = new ArrayList<ProtoRouteStop>();
+		ProtoRoute ret = new ProtoRoute();
 
 		Coordinate[] coords = geom.getCoordinates();
 		double overshot = 0;
@@ -417,6 +437,8 @@ public class Main {
 		prs.routeId = routeId;
 		prs.dist = totalLen;
 		ret.add(prs);
+		
+		ret.length = totalLen;
 
 		return ret;
 	}

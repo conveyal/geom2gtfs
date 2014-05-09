@@ -37,7 +37,11 @@ public class ExtendedFeature {
 		if (prop == null) {
 			return null;
 		}
-		return prop.getValue().toString();
+		Object val = prop.getValue();
+		if(val==null){
+			return null;
+		}
+		return val.toString();
 
 	}
 

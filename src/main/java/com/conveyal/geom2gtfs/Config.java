@@ -50,7 +50,7 @@ public class Config {
 		}
 	}
 
-	public Integer getMode(Feature feat) {
+	public Integer getMode(ExtendedFeature feat) {
 		Object modeObj = data.get("gtfs_mode");
 		if( Integer.class.isInstance( modeObj) ){
 			return (Integer)modeObj;
@@ -71,7 +71,8 @@ public class Config {
 				return mode;
 			}
 			
-			if(feat.getProperty(propName).getValue().toString().equals(propVal)){
+			String featPropVal = feat.getProperty(propName);
+			if(featPropVal!=null && featPropVal.equals(propVal)){
 				return mode;
 			}
 		}
@@ -79,7 +80,7 @@ public class Config {
 		return null;
 	}
 
-	public Integer getSpacing(Feature feat) {
+	public Integer getSpacing(ExtendedFeature feat) {
 		Object spacingObj = data.get("spacing");
 		if(Integer.class.isInstance(spacingObj)){
 			return (Integer)spacingObj;
@@ -99,7 +100,8 @@ public class Config {
 				return spacing;
 			}
 			
-			if(feat.getProperty(propName).getValue().toString().equals(propVal)){
+			String featPropVal = feat.getProperty(propName);
+			if(featPropVal!=null && featPropVal.equals(propVal)){
 				return spacing;
 			}
 		}
@@ -107,7 +109,7 @@ public class Config {
 		return null;
 	}
 
-	public Double getSpeed(Feature feat) {
+	public Double getSpeed(ExtendedFeature feat) {
 		Object speedObj = data.get("speed");
 		if(Double.class.isInstance(speedObj)){
 			return (Double)speedObj;
@@ -127,7 +129,8 @@ public class Config {
 				return speed;
 			}
 			
-			if(feat.getProperty(propName).getValue().toString().equals(propVal)){
+			String featPropVal = feat.getProperty(propName);
+			if(featPropVal!=null && featPropVal.equals(propVal)){
 				return speed;
 			}
 		}
