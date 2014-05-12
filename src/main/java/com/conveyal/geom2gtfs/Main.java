@@ -255,6 +255,7 @@ public class Main {
 				queue.trips.add(trip);
 				
 				int segStart = t;
+				int firstStopTimeSeq=0;
 				List<StopTime> stopTimes = new ArrayList<StopTime>();
 				
 				for(int i=0; i<protoRoutes.size(); i++){
@@ -264,9 +265,10 @@ public class Main {
 					
 					ProtoRoute protoRoute = protoRoutes.get(index);
 					
-					List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart);
+					List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart, firstStopTimeSeq);
 					stopTimes.addAll(segStopTimes);
 					segStart += protoRoute.getDuration();
+					firstStopTimeSeq += segStopTimes.size();
 				}
 
 				
@@ -296,11 +298,13 @@ public class Main {
 		}
 
 		int segStart = 0;
+		int firstStopTimeSeq=0;
 		List<StopTime> newStopTimes = new ArrayList<StopTime>();
 		for( ProtoRoute protoRoute : protoRoutes ){
-			List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart);
+			List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart, firstStopTimeSeq);
 			newStopTimes.addAll(segStopTimes);
 			segStart += protoRoute.getDuration();
+			firstStopTimeSeq += segStopTimes.size();
 		}
 				
 		queue.stoptimes.addAll(newStopTimes);
@@ -321,7 +325,7 @@ public class Main {
 	}
 
 	private static List<StopTime> createStopTimes(List<ProtoRouteStop> prss, Map<ProtoRouteStop, Stop> prsStops,
-			boolean reverse, double speed, Trip trip, int tripStart) {
+			boolean reverse, double speed, Trip trip, int tripStart, int firstStopTimeSequence) {
 		List<StopTime> newStopTimes = new ArrayList<StopTime>();
 		double firstStopDist = 0;
 		for (int i = 0; i < prss.size(); i++) {
@@ -340,7 +344,7 @@ public class Main {
 			StopTime stoptime = new StopTime();
 			stoptime.setStop(stop);
 			stoptime.setTrip(trip);
-			stoptime.setStopSequence(i);
+			stoptime.setStopSequence(i+firstStopTimeSequence);
 			double dist = Math.abs(prs.dist - firstStopDist);
 			int time = (int) (dist / speed) + tripStart;
 			stoptime.setArrivalTime(time);
