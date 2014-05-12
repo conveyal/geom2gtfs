@@ -79,35 +79,56 @@ public class Config {
 		
 		return null;
 	}
-
-	public Integer getSpacing(ExtendedFeature feat) {
-		Object spacingObj = data.get("spacing");
-		if(Integer.class.isInstance(spacingObj)){
-			return (Integer)spacingObj;
+	
+	public StopGenerator getStopGenerator(){
+		JSONObject stopGeneratorData;
+		
+		try{
+			stopGeneratorData = data.getJSONObject("stops");
+		} catch (JSONException ex){
+			return null;
 		}
 		
-		JSONArray gtfsModeFilters = (JSONArray)spacingObj;
+		String strategy = stopGeneratorData.getString("strategy");
 		
-		for(int i=0; i<gtfsModeFilters.length(); i++){
-			JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
-			JSONArray filter = gtfsModeFilter.getJSONArray(0);
-			Integer spacing = gtfsModeFilter.getInt(1);
-			
-			String propName = filter.getString(0);
-			String propVal = filter.getString(1);
-			
-			if(propVal.equals("*")){ //star matches everything
-				return spacing;
-			}
-			
-			String featPropVal = feat.getProperty(propName);
-			if(featPropVal!=null && featPropVal.equals(propVal)){
-				return spacing;
-			}
+		if(strategy.equals("picket")){
+			return new PicketStopGenerator( stopGeneratorData );
+		} else if(strategy.equals("shapefile")){
+			return new ShapefileStopGenerator( stopGeneratorData );
+		} else {
+			throw new UnsupportedOperationException( "no stop generator corresponds to strategy '"+strategy+"'" );
 		}
 		
-		return null;
 	}
+
+//	public Integer getSpacing(ExtendedFeature feat) {
+//		Object spacingObj = data.get("spacing");
+//		if(Integer.class.isInstance(spacingObj)){
+//			return (Integer)spacingObj;
+//		}
+//		
+//		JSONArray gtfsModeFilters = (JSONArray)spacingObj;
+//		
+//		for(int i=0; i<gtfsModeFilters.length(); i++){
+//			JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
+//			JSONArray filter = gtfsModeFilter.getJSONArray(0);
+//			Integer spacing = gtfsModeFilter.getInt(1);
+//			
+//			String propName = filter.getString(0);
+//			String propVal = filter.getString(1);
+//			
+//			if(propVal.equals("*")){ //star matches everything
+//				return spacing;
+//			}
+//			
+//			String featPropVal = feat.getProperty(propName);
+//			if(featPropVal!=null && featPropVal.equals(propVal)){
+//				return spacing;
+//			}
+//		}
+//		
+//		return null;
+//	}
 
 	public Double getSpeed(ExtendedFeature feat) {
 		Object speedObj = data.get("speed");

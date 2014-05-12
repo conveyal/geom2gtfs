@@ -37,7 +37,6 @@ public class Main {
 
 	private static final String DEFAULT_AGENCY_ID = "0";
 	private static final String DEFAULT_CAL_ID = "0";
-	private static final boolean FAIL_ON_MULTILINESTRING = true;
 	static Config config;
 
 	static GtfsQueue queue = null;
@@ -199,15 +198,12 @@ public class Main {
 		queue.routes.add(route);
 		
 		List<ProtoRoute> protoRoutes = new ArrayList<ProtoRoute>();
+		StopGenerator stops = config.getStopGenerator();
 		for(ExtendedFeature exft : group){
 			// figure out spacing and speed for mode
-			Integer spacing = config.getSpacing(exft);
 			Double speed = config.getSpeed(exft);
-			
-			GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
-			MultiLineString geom = (MultiLineString) geomAttr.getValue();
 	
-			ProtoRoute protoroute = makeProtoRouteStops(geom, spacing, speed, routeId);
+			ProtoRoute protoroute = stops.makeProtoRoute(exft, speed, routeId);
 			protoRoutes.add( protoroute );
 		}
 
@@ -387,64 +383,6 @@ public class Main {
 			headway = 3600 / perHour;
 		}
 		return headway;
-	}
-
-	private static ProtoRoute makeProtoRouteStops(MultiLineString geom, double spacing, double speed, String routeId) throws Exception {
-		if (FAIL_ON_MULTILINESTRING && geom.getNumGeometries() > 1) {
-			throw new Exception("Features may only contain a single linestring.");
-		}
-		
-		LineString ls = (LineString) geom.getGeometryN(0);
-		ProtoRoute ret = makeProtoRouteStopsFromLinestring(ls, spacing, routeId);
-		ret.speed = speed;
-		return ret;
-	}
-
-	private static ProtoRoute makeProtoRouteStopsFromLinestring(LineString geom, double spacing,
-			String routeId) {
-		ProtoRoute ret = new ProtoRoute();
-
-		Coordinate[] coords = geom.getCoordinates();
-		double overshot = 0;
-		double segStartDist = 0;
-
-		double totalLen = 0;
-		for (int i = 0; i < coords.length - 1; i++) {
-			Coordinate p1 = coords[i];
-			Coordinate p2 = coords[i + 1];
-
-			double segCurs = overshot;
-			double segLen = GeoMath.greatCircle(p1, p2);
-			totalLen += segLen;
-
-			while (segCurs < segLen) {
-				double index = segCurs / segLen;
-				Coordinate interp = GeoMath.interpolate(p1, p2, index);
-
-				ProtoRouteStop prs = new ProtoRouteStop();
-				prs.coord = interp;
-				prs.routeId = routeId;
-				prs.dist = segStartDist + segCurs;
-				ret.add(prs);
-
-				segCurs += spacing;
-			}
-
-			overshot = segCurs - segLen;
-
-			segStartDist += segLen;
-		}
-
-		// add one final stop, at the very end
-		ProtoRouteStop prs = new ProtoRouteStop();
-		prs.coord = coords[coords.length - 1];
-		prs.routeId = routeId;
-		prs.dist = totalLen;
-		ret.add(prs);
-		
-		ret.length = totalLen;
-
-		return ret;
 	}
 
 	private static FeatureSource<?, ?> getFeatureSource(String shp_filename) throws MalformedURLException, IOException {
