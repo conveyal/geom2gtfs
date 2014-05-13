@@ -2,6 +2,7 @@ package com.conveyal.geom2gtfs;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -80,7 +81,7 @@ public class Config {
 		return null;
 	}
 	
-	public StopGenerator getStopGenerator(){
+	public StopGenerator getStopGenerator() throws MalformedURLException, IOException{
 		JSONObject stopGeneratorData;
 		
 		try{

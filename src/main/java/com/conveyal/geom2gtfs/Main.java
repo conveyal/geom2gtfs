@@ -203,7 +203,7 @@ public class Main {
 			// figure out spacing and speed for mode
 			Double speed = config.getSpeed(exft);
 	
-			ProtoRoute protoroute = stops.makeProtoRoute(exft, speed, routeId);
+			ProtoRoute protoroute = stops.makeProtoRoute(exft, speed);
 			protoRoutes.add( protoroute );
 		}
 
@@ -385,7 +385,7 @@ public class Main {
 		return headway;
 	}
 
-	private static FeatureSource<?, ?> getFeatureSource(String shp_filename) throws MalformedURLException, IOException {
+	static FeatureSource<?, ?> getFeatureSource(String shp_filename) throws MalformedURLException, IOException {
 		// construct shapefile factory
 		File file = new File(shp_filename);
 		Map<String, URL> map = new HashMap<String, URL>();

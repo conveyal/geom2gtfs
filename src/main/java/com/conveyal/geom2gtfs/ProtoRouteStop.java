@@ -5,5 +5,4 @@ import com.vividsolutions.jts.geom.Coordinate;
 public class ProtoRouteStop {
 	public Coordinate coord;
 	public double dist;
-	public String routeId;
 }

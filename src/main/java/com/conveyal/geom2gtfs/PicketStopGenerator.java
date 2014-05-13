@@ -18,7 +18,7 @@ public class PicketStopGenerator implements StopGenerator {
 		this.data = data;
 	}
 
-	private ProtoRoute makeProtoRouteStopsFromLinestring(LineString geom, double spacing, String routeId) {
+	private ProtoRoute makeProtoRouteStopsFromLinestring(LineString geom, double spacing) {
 		ProtoRoute ret = new ProtoRoute();
 
 		Coordinate[] coords = geom.getCoordinates();
@@ -40,7 +40,6 @@ public class PicketStopGenerator implements StopGenerator {
 
 				ProtoRouteStop prs = new ProtoRouteStop();
 				prs.coord = interp;
-				prs.routeId = routeId;
 				prs.dist = segStartDist + segCurs;
 				ret.add(prs);
 
@@ -55,7 +54,6 @@ public class PicketStopGenerator implements StopGenerator {
 		// add one final stop, at the very end
 		ProtoRouteStop prs = new ProtoRouteStop();
 		prs.coord = coords[coords.length - 1];
-		prs.routeId = routeId;
 		prs.dist = totalLen;
 		ret.add(prs);
 
@@ -93,7 +91,7 @@ public class PicketStopGenerator implements StopGenerator {
 		return null;
 	}
 
-	public ProtoRoute makeProtoRoute(ExtendedFeature exft, Double speed, String routeId) throws Exception {
+	public ProtoRoute makeProtoRoute(ExtendedFeature exft, Double speed) throws Exception {
 		GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
 		MultiLineString geom = (MultiLineString) geomAttr.getValue();
 
@@ -104,7 +102,7 @@ public class PicketStopGenerator implements StopGenerator {
 		double spacing = this.getSpacing(exft);
 
 		LineString ls = (LineString) geom.getGeometryN(0);
-		ProtoRoute ret = this.makeProtoRouteStopsFromLinestring(ls, spacing, routeId);
+		ProtoRoute ret = this.makeProtoRouteStopsFromLinestring(ls, spacing);
 		ret.speed = speed;
 		return ret;
 	}
