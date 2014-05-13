@@ -3,8 +3,15 @@
 	"agency_url":"http://metro.kingcounty.gov/",
 	"agency_timezone":"America/Los_Angeles",
 	"gtfs_mode":3,
-	"speed":5.4,
-	"spacing":400,
+	"speed":[
+		[["express","1"],23],
+		[["express","*"],5.4],
+	],
+    "stops":{
+        "strategy":"shapefile",
+	    "filename":"data/kingco/kingco_stops.shp",
+	   	"threshold":0.0002,
+    },
 	"route_id_prop_name":"ROUTE",
 	"route_name_prop_name":"ROUTE",
 	"service_windows":[
