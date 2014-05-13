@@ -104,10 +104,18 @@ public class ShapefileStopGenerator implements StopGenerator {
 			
 		});
 		
+		// copy to return structure while removing duplicates
 		ProtoRoute ret = new ProtoRoute();
+		double lastDist=-1;
 		for(ProtoRouteStop prs : prss){
-			ret.add(prs);
+			if(prs.dist != lastDist){
+				ret.add(prs);
+				lastDist = prs.dist;
+			}
 		}
+		
+		ret.length = distAlongLineString( ls, ils.getEndIndex() );
+		
 		return ret;
 	}
 
