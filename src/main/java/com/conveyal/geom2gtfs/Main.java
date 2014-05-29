@@ -216,6 +216,7 @@ public class Main {
 				stop.setLon(prs.coord.x);
 				stop.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.stops.size())));
 				stop.setName(String.valueOf(queue.stops.size()));
+				
 				queue.stops.add(stop);
 	
 				prsStops.put(prs, stop);
@@ -261,7 +262,7 @@ public class Main {
 					
 					ProtoRoute protoRoute = protoRoutes.get(index);
 					
-					List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart, firstStopTimeSeq);
+					List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart, firstStopTimeSeq, protoRoute.length);
 					stopTimes.addAll(segStopTimes);
 					segStart += protoRoute.getDuration();
 					firstStopTimeSeq += segStopTimes.size();
@@ -297,7 +298,7 @@ public class Main {
 		int firstStopTimeSeq=0;
 		List<StopTime> newStopTimes = new ArrayList<StopTime>();
 		for( ProtoRoute protoRoute : protoRoutes ){
-			List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart, firstStopTimeSeq);
+			List<StopTime> segStopTimes = createStopTimes(protoRoute.ret, prsStops, reverse, protoRoute.speed, trip, segStart, firstStopTimeSeq, protoRoute.length);
 			newStopTimes.addAll(segStopTimes);
 			segStart += protoRoute.getDuration();
 			firstStopTimeSeq += segStopTimes.size();
@@ -321,9 +322,8 @@ public class Main {
 	}
 
 	private static List<StopTime> createStopTimes(List<ProtoRouteStop> prss, Map<ProtoRouteStop, Stop> prsStops,
-			boolean reverse, double speed, Trip trip, int tripStart, int firstStopTimeSequence) {
+			boolean reverse, double speed, Trip trip, int tripStart, int firstStopTimeSequence, double segLen) {
 		List<StopTime> newStopTimes = new ArrayList<StopTime>();
-		double firstStopDist = 0;
 		for (int i = 0; i < prss.size(); i++) {
 
 			int ix = i;
@@ -331,9 +331,6 @@ public class Main {
 				ix = prss.size() - 1 - i;
 			}
 			ProtoRouteStop prs = prss.get(ix);
-			if (i == 0) {
-				firstStopDist = prs.dist;
-			}
 			Stop stop = prsStops.get(prs);
 
 			// generate stoptime
@@ -341,8 +338,15 @@ public class Main {
 			stoptime.setStop(stop);
 			stoptime.setTrip(trip);
 			stoptime.setStopSequence(i+firstStopTimeSequence);
-			double dist = Math.abs(prs.dist - firstStopDist);
+			
+			double dist;
+			if(reverse){
+				dist = segLen-prs.dist;
+			} else {
+				dist = prs.dist;
+			}
 			int time = (int) (dist / speed) + tripStart;
+			
 			stoptime.setArrivalTime(time);
 			stoptime.setDepartureTime(time);
 			
