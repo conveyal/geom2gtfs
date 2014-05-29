@@ -4,7 +4,11 @@
 	"agency_timezone":"America/Los_Angeles",
 	"gtfs_mode":3,
 	"speed":[
-		[["express","1"],23],
+        [["ROUTE","12"],4.0],
+        [["ROUTE","2"],4.0],
+        [["ROUTE","3"],4.0],
+		[["express","1"],13.4],
+        [["ROUTE","193EX"],4.0],
 		[["express","*"],5.4],
 	],
     "stops":{
