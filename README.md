@@ -1,9 +1,24 @@
 geom2gtfs
 =========
 
-[geom2gtfs](https://github.com/conveyal/geom2gtfs) is a command line tool that converts each feature in a shapefile into a route in a GTFS file. Using the geom2gtfs tool is simple, but it requires a carefully prepared shapefile and configuration file. To run it from the command line:
+[geom2gtfs](https://github.com/conveyal/geom2gtfs) is a command line tool that converts each feature in a shapefile into a route in a GTFS file.
 
-    $ geom2gtfs shapefile_filename config_filename output_filename
+Setup
+-----
+
+To get started, install the [latest JDK](http://www.oracle.com/technetwork/java/javase/downloads/index.html) and [Gradle](http://www.gradle.org/). Then:
+
+```console
+git clone https://github.com/conveyal/geom2gtfs
+cd geom2gtfs
+gradle fatJar
+java -jar build/libs/geom2gtfs.jar <shapefile_filename> <config_filename> <output_filename>
+```
+
+Usage
+-----
+
+Using the geom2gtfs tool is simple, but it requires a carefully prepared shapefile and configuration file. 
 
 The input shapefile must be unprojected, and contain only lines, with no multigeometry features. If the features in the shapefile have properties, such as “route” or “mode” or “speed” those properties can be used to modulate the speed of the routes written to the GTFS. It’s possible to use multiple lines to represent the same route if they share a route id property (the name of the property is defined in the config file) and sequential lines run in the same direction and have successive “segment” properties. It’s possible to join a CSV to the shapefile using the geom2gtfs config file, which is how we associated service frequencies with lines. The CSV of service frequencies from King County was compiled using the King County spreadsheet, and looks like this:
 
