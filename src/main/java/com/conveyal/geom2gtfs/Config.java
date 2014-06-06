@@ -20,6 +20,7 @@ public class Config {
 	private boolean DEFAULT_USE_PERIODS = false;
 	private double DEFAULT_WAIT_FACTOR = 1.0;
 	private boolean DEFAULT_EXACT = false; 
+	private static final boolean DEFAULT_TOLERANT = true;
 
 	public Config(String config_fn) throws IOException {
 		File ff = new File(config_fn);
@@ -276,6 +277,14 @@ public class Config {
 			return data.getBoolean("exact");
 		} catch (JSONException ex){
 			return DEFAULT_EXACT   ;
+		}
+	}
+
+	public boolean tolerant() {
+		try{
+			return data.getBoolean("tolerant");
+		} catch (JSONException ex){
+			return DEFAULT_TOLERANT   ;
 		}
 	}
 

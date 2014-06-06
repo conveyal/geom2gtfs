@@ -238,10 +238,20 @@ public class Main {
 	}
 
 	private static void makeTimetableTrips(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) {
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		// for each window
 		for (ServiceWindow window : config.getServiceWindows()) {
-			Double headway = getHeadway(exft, window.propName, usePeriods);
+			Double headway;
+			try{
+				headway = getHeadway(exft, window.propName, usePeriods);
+			} catch (FeatureDoesntDefineTimeWindowException ex){
+				System.out.println( "route id:"+route.getId().getId()+" has no value for time window "+window.propName );
+				if( config.tolerant() ){
+					continue;
+				} else {
+					throw ex;
+				}
+			}
 			if(headway==null){
 				continue;
 			}
@@ -276,16 +286,23 @@ public class Main {
 	}
 
 	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
-			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) {
+			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		// generate a trip
 		Trip trip = makeNewTrip(route, reverse);
 		queue.trips.add(trip);
 
 		// generate a frequency
 		for (ServiceWindow window : config.getServiceWindows()) {
-			Double headway = getHeadway(exft, window.propName, usePeriods);
-			if(headway==null){
-				continue;
+			Double headway;
+			try{
+				headway = getHeadway(exft, window.propName, usePeriods);
+			} catch (FeatureDoesntDefineTimeWindowException ex){
+				System.out.println( "feature for route id:"+route.getId().getId()+" does not define time window '"+window.propName+"'" );
+				if( config.tolerant() ){
+					continue;
+				} else {
+					throw ex;
+				}
 			}
 			
 			headway /= config.waitFactor();
@@ -370,11 +387,11 @@ public class Main {
 		return freq;
 	}
 
-	private static Double getHeadway(ExtendedFeature exft, String propName, boolean usePeriods) {
+	private static Double getHeadway(ExtendedFeature exft, String propName, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		double headway;
 		String freqStr = exft.getProperty(propName);
 		if (freqStr == null || freqStr.equals("None")) {
-			return null;
+			throw new FeatureDoesntDefineTimeWindowException(propName);
 		}
 		Double freqDbl = Double.parseDouble(freqStr);
 		if (freqDbl == 0.0) {
