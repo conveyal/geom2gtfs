@@ -18,7 +18,7 @@ java -jar build/libs/geom2gtfs.jar <shapefile_filename> <config_filename> <outpu
 Usage
 -----
 
-Using the geom2gtfs tool is simple, but it requires a carefully prepared shapefile and configuration file. 
+Using the geom2gtfs tool is simple, but it requires a carefully prepared shapefile and configuration file.
 
 The input shapefile must be unprojected, and contain only lines, with no multigeometry features. If the features in the shapefile have properties, such as “route” or “mode” or “speed” those properties can be used to modulate the speed of the routes written to the GTFS. It’s possible to use multiple lines to represent the same route if they share a route id property (the name of the property is defined in the config file) and sequential lines run in the same direction and have successive “segment” properties. It’s possible to join a CSV to the shapefile using the geom2gtfs config file, which is how we associated service frequencies with lines. The CSV of service frequencies from King County was compiled using the King County spreadsheet, and looks like this:
 
@@ -38,7 +38,7 @@ The input shapefile must be unprojected, and contain only lines, with no multige
     116EX,22.0,None,25.0,None,None,None
     ...
 
-Finally, it’s possible to have the geom2gtfs tool place stops at a regular spacing along the lines, or to use a shapefile of existing stops. In the case of our King County analysis, I produced a shapefile from the stops.txt of the original GTFS and used that. 
+Finally, it’s possible to have the geom2gtfs tool place stops at a regular spacing along the lines, or to use a shapefile of existing stops. In the case of our King County analysis, I produced a shapefile from the stops.txt of the original GTFS and used that.
 
 ### An example geom2gtfs configuration file ###
 
@@ -65,7 +65,7 @@ The speed can be a constant, or a list. If it’s a list, each item in the list 
             [["ROUTE","193EX"],4.0],
             [["express","*"],5.4],
       ],
-The ‘stops’ section specifies a strategy, which can be either “shapefile” or “picket”, and some arguments required by either given strategy. The “shapefile” strategy requires an unprojected point shapefile and a threshold around each linear feature to look for stops in that shapefile. The ‘picket’ strategy takes one named argument ‘spacing’, either a scalar or list of filters like the speed argument. 
+The ‘stops’ section specifies a strategy, which can be either “shapefile” or “picket”, and some arguments required by either given strategy. The “shapefile” strategy requires an unprojected point shapefile and a threshold around each linear feature to look for stops in that shapefile. The ‘picket’ strategy takes one named argument ‘spacing’, either a scalar or list of filters like the speed argument.
 
       "stops":{
              "strategy":"shapefile",
@@ -102,7 +102,7 @@ Set the start and end date of the service calendar. Our hypothetical GTFS will b
 
       "start_date":"20140101",
       "end_date":"20150101",
-Specify whether the service level values are periods, the amount of time between departures; or frequencies, the number of departures in an hour.
+Specify whether the service level values are periods (headways), the amount of time between departures; or frequencies, the number of departures in an hour.
 
      "use_periods":true,
 Set whether or not service should run in both directions of a shapefile line. If “is_bidirectional” is false, you’ll need to make a shapefile feature for each route direction.
