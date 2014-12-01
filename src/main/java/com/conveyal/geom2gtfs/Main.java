@@ -35,7 +35,7 @@ import com.vividsolutions.jts.geom.MultiLineString;
 
 public class Main {
 
-	private static final String DEFAULT_AGENCY_ID = "0";
+	static final String DEFAULT_AGENCY_ID = "0";
 	private static final String DEFAULT_CAL_ID = "0";
 	static Config config;
 
@@ -211,13 +211,10 @@ public class Main {
 		for(ProtoRoute protoroute : protoRoutes ){
 			for (ProtoRouteStop prs : protoroute.ret) {
 				// generate stops
-				Stop stop = new Stop();
-				stop.setLat(prs.coord.y);
-				stop.setLon(prs.coord.x);
-				stop.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.stops.size())));
-				stop.setName(String.valueOf(queue.stops.size()));
+				Stop stop = prs.stop;
 				
-				queue.stops.add(stop);
+				if (!queue.stops.contains(stop))
+				    queue.stops.add(stop);
 	
 				prsStops.put(prs, stop);
 			}

@@ -122,9 +122,7 @@ public class ShapefileStopGenerator implements StopGenerator {
 	private ProtoRouteStop generateProtoRouteStop(LineString ls, LinearLocation ix) {
 		double dist = distAlongLineString( ls, ix );
 		
-		ProtoRouteStop prs = new ProtoRouteStop();
-		prs.coord = ix.getCoordinate( ls );
-		prs.dist = dist;
+		ProtoRouteStop prs = new ProtoRouteStop(ix.getCoordinate(ls), dist);
 		
 		return prs;
 	}

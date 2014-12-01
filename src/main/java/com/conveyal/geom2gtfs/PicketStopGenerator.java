@@ -38,9 +38,7 @@ public class PicketStopGenerator implements StopGenerator {
 				double index = segCurs / segLen;
 				Coordinate interp = GeoMath.interpolate(p1, p2, index);
 
-				ProtoRouteStop prs = new ProtoRouteStop();
-				prs.coord = interp;
-				prs.dist = segStartDist + segCurs;
+				ProtoRouteStop prs = new ProtoRouteStop(interp, segStartDist + segCurs);
 				ret.add(prs);
 
 				segCurs += spacing;
@@ -52,9 +50,7 @@ public class PicketStopGenerator implements StopGenerator {
 		}
 
 		// add one final stop, at the very end
-		ProtoRouteStop prs = new ProtoRouteStop();
-		prs.coord = coords[coords.length - 1];
-		prs.dist = totalLen;
+		ProtoRouteStop prs = new ProtoRouteStop(coords[coords.length - 1], totalLen);
 		ret.add(prs);
 
 		ret.length = totalLen;

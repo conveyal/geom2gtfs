@@ -97,6 +97,8 @@ public class Config {
 			return new PicketStopGenerator( stopGeneratorData );
 		} else if(strategy.equals("shapefile")){
 			return new ShapefileStopGenerator( stopGeneratorData );
+		} else if(strategy.equals("cluster")){
+		    return new ClusterStopGenerator(stopGeneratorData);
 		} else {
 			throw new UnsupportedOperationException( "no stop generator corresponds to strategy '"+strategy+"'" );
 		}
