@@ -89,6 +89,8 @@ public class Main {
 		
 		Map<String, List<ExtendedFeature>> featureGroups = groupFeatures( extFeatures );
 		
+		StopGenerator stopGenerator = config.getStopGenerator();
+		
 		for( List<ExtendedFeature> group : featureGroups.values() ){
 			
 			ExtendedFeature exemplar = group.get(0);
@@ -96,7 +98,7 @@ public class Main {
 			System.out.println("generating elements for \"" + exemplar.getProperty(config.getRouteNamePropName())
 					+ "\"");
 
-			featToGtfs(group, agency);
+			featToGtfs(group, agency, stopGenerator);
 		}
 
 		System.out.println( "writing to "+output_fn );
@@ -180,7 +182,8 @@ public class Main {
 		return ret;
 	}
 
-	private static void featToGtfs(List<ExtendedFeature> group, Agency agency) throws Exception {
+	private static void featToGtfs(List<ExtendedFeature> group, Agency agency,
+	        StopGenerator stopGenerator) throws Exception {
 		
 		ExtendedFeature exemplar = group.get(0);
 
@@ -198,12 +201,11 @@ public class Main {
 		queue.routes.add(route);
 		
 		List<ProtoRoute> protoRoutes = new ArrayList<ProtoRoute>();
-		StopGenerator stops = config.getStopGenerator();
 		for(ExtendedFeature exft : group){
 			// figure out spacing and speed for mode
 			Double speed = config.getSpeed(exft);
 	
-			ProtoRoute protoroute = stops.makeProtoRoute(exft, speed);
+			ProtoRoute protoroute = stopGenerator.makeProtoRoute(exft, speed);
 			protoRoutes.add( protoroute );
 		}
 
