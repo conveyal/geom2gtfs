@@ -336,6 +336,9 @@ public class ClusterStopGenerator implements StopGenerator {
                 
                 count++;
                 
+                // referential integrity
+                stop.setParentStation(null);
+                
                 Coordinate coord = new Coordinate(stop.getLon(), stop.getLat());
                 
                 AgencyAndId existingId = stop.getId();
