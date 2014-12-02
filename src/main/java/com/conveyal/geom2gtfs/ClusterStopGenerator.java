@@ -328,9 +328,13 @@ public class ClusterStopGenerator implements StopGenerator {
         @Override
         public void handleEntity(Object o) {
             if (o instanceof Stop) {
-                count++;
-                
                 Stop stop = (Stop) o;
+                
+                // don't snap to stations
+                if (stop.getLocationType() == 1)
+                    return;
+                
+                count++;
                 
                 Coordinate coord = new Coordinate(stop.getLon(), stop.getLat());
                 
