@@ -65,13 +65,20 @@ The speed can be a constant, or a list. If it’s a list, each item in the list 
             [["ROUTE","193EX"],4.0],
             [["express","*"],5.4],
       ],
-The ‘stops’ section specifies a strategy, which can be either “shapefile” or “picket”, and some arguments required by either given strategy. The “shapefile” strategy requires an unprojected point shapefile and a threshold around each linear feature to look for stops in that shapefile. The ‘picket’ strategy takes one named argument ‘spacing’, either a scalar or list of filters like the speed argument.
+The ‘stops’ section specifies a strategy, which can be “shapefile”, “picket”, or "cluster", and some arguments required by either given strategy. The “shapefile” strategy requires an unprojected point shapefile and a threshold around each linear feature to look for stops in that shapefile. The ‘picket’ strategy takes one named argument ‘spacing’, either a scalar or list of filters like the speed argument.
 
       "stops":{
              "strategy":"shapefile",
              "filename":"data/kingco/kingco_stops.shp",
              "threshold":0.0002,
       },
+
+Alternately, one can use the cluster strategy. This strategy takes a spacing argument like the picket strategy, but unlike the picket strategy it will use the same stops for multiple routes that travel along the same roads. It also takes a `threshold` property (default 100m), which is the maximum distance (in meters) stops will be moved from their ideal locations in order to coincide with an existing stop.
+
+You can also specify a property `osmfile`, which is an OSM PBF file whose walkable roads and intersections will have stops snapped to them.
+
+You can specify a property `create_stops`. If true (default), stops will be created even if there is nothing nearby to snap them to. If false, these stop locations will be skipped (useful for routes that run along highways, for example).
+
 Specify the name of the shapefile property where the route id is kept.
 
       "route_id_prop_name":"ROUTE",
