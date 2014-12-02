@@ -1,10 +1,17 @@
 package com.conveyal.geom2gtfs;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.onebusaway.csv_entities.EntityHandler;
+import org.onebusaway.csv_entities.exceptions.CsvEntityIOException;
+import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
+import org.onebusaway.gtfs.serialization.GtfsReader;
 import org.opengis.feature.GeometryAttribute;
 import org.opentripplanner.osm.Node;
 import org.opentripplanner.osm.OSM;
@@ -18,7 +25,6 @@ import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.PrecisionModel;
 import com.vividsolutions.jts.index.SpatialIndex;
 import com.vividsolutions.jts.index.quadtree.Quadtree;
-import com.vividsolutions.jts.index.strtree.STRtree;
 import com.vividsolutions.jts.linearref.LinearLocation;
 import com.vividsolutions.jts.linearref.LocationIndexedLine;
 
@@ -29,8 +35,11 @@ import com.vividsolutions.jts.linearref.LocationIndexedLine;
  * @author mattwigway
  */
 public class ClusterStopGenerator implements StopGenerator {
-    public SpatialIndex stopIndex;
+    // this is final because the subclass stoploader accesses it.
+    public final SpatialIndex stopIndex;
     public SpatialIndex wayIndex;
+    
+    private JSONObject data;
     
     private static GeometryFactory geometryFactory =
             new GeometryFactory(new PrecisionModel(PrecisionModel.FIXED), 4326);
@@ -45,12 +54,14 @@ public class ClusterStopGenerator implements StopGenerator {
     public boolean createUnmatchedStops;
     
     public ClusterStopGenerator(JSONObject data) {
+        this.data = data;
+        
         stopIndex = new Quadtree();
         wayIndex = new Quadtree();
         threshold = data.has("threshold") ? data.getDouble("threshold") : 100D;
         createUnmatchedStops = data.has("create_stops") ? data.getBoolean("create_stops") : true;
         
-        // Load OSM file
+        // Load OSM files
         if (data.has("osmfiles")) {
             JSONArray files = data.getJSONArray("osmfiles");
             for (int i = 0; i < files.length(); i++) {
@@ -82,6 +93,34 @@ public class ClusterStopGenerator implements StopGenerator {
                 }
             }
         }
+        
+        // Load GTFS files        
+        if (data.has("gtfsfiles")) {
+        
+            JSONArray files = data.getJSONArray("gtfsfiles");
+            for (int fileIdx = 0; fileIdx < files.length(); fileIdx++) {
+                String fileName = files.getString(fileIdx);
+                System.err.println("Processing GTFS file " + fileName);
+                
+                try {
+                    GtfsReader reader = new GtfsReader();
+                    reader.setInputLocation(new File(fileName));
+                    reader.addEntityHandler(new StopLoader(fileIdx));
+                    reader.run();
+                } catch (CsvEntityIOException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof AllStopsLoadedException) {
+                        // this is expected; all the stops have been loaded.
+                        System.err.println("Loaded " + ((AllStopsLoadedException) cause).count + " stops" );
+                    } else {
+                        // rethrow
+                        throw e;
+                    }
+                } catch (IOException e) {
+                    System.err.println("Unable to load GTFS file " + fileName);
+                }
+            }
+        }
     }
     
     @Override
@@ -106,7 +145,7 @@ public class ClusterStopGenerator implements StopGenerator {
             metersAlongLine[i] = metersAlongLine[i - 1] + GeoMath.greatCircle(coords[i - 1], coords[i]);
         }
         
-        double spacing = 400;//this.getSpacing();
+        double spacing = Config.getSpacing(exft, this.data);
         
         // find stops near each "ideal" location on the line
         for (double offset = 0; offset < metersAlongLine[metersAlongLine.length - 1]; offset += spacing) {
@@ -265,5 +304,65 @@ public class ClusterStopGenerator implements StopGenerator {
         
         /** intersections[i] is true if node i is an intersection, false otherwise */
         public boolean[] intersections;
+    }
+    
+    /**
+     * Load just the stops from a GTFS feed.
+     * 
+     * Once all stops have been loaded, raises an AllStopsLoadedException to prevent loading the
+     * rest of the feed.
+     */
+    private class StopLoader implements EntityHandler {
+        private int gtfsFile;
+        private int count;
+        
+        /**
+         * Construct a new StopLoader
+         * @param gtfsFile Stop IDs will be prefixed with this to avoid namespace collisions.
+         */
+        public StopLoader (int gtfsFile) {
+            count = 0;
+            this.gtfsFile = gtfsFile;
+        }
+        
+        @Override
+        public void handleEntity(Object o) {
+            if (o instanceof Stop) {
+                count++;
+                
+                Stop stop = (Stop) o;
+                
+                Coordinate coord = new Coordinate(stop.getLon(), stop.getLat());
+                
+                AgencyAndId existingId = stop.getId();
+                AgencyAndId newId =
+                        new AgencyAndId(Main.DEFAULT_AGENCY_ID, 
+                                "" + gtfsFile + "_" + existingId.getId()
+                                );
+
+                stop.setId(newId);
+                
+                stopIndex.insert(new Envelope(coord), stop);
+            }
+            else if (count > 0) {
+                // OBA processes the files sequentially, so if we have seen a stop in the past
+                // but this is not a stop, we are done
+
+                throw new AllStopsLoadedException(count);
+            }
+        }
+    }
+    
+    /**
+     * Indicates that all the stops have been loaded.
+     * 
+     * This is unchecked because we can't throw an exception inside HandleEntity.
+     */
+    private static class AllStopsLoadedException extends RuntimeException {
+        public int count;
+        
+        public AllStopsLoadedException (int count) {
+            this.count = count;
+        }
     }
 }

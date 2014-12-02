@@ -289,5 +289,38 @@ public class Config {
 			return DEFAULT_TOLERANT   ;
 		}
 	}
+	
+	
+	/**
+	 * Get the desired stop spacing for feature feat from the stop generator
+	 * configuration stopGeneratorData.
+	 */
+	public static Integer getSpacing(ExtendedFeature feat, JSONObject stopGeneratorData) {
+	    Object spacingObj = stopGeneratorData.get("spacing");
+	    if (Integer.class.isInstance(spacingObj)) {
+	        return (Integer) spacingObj;
+	    }
 
+	    JSONArray gtfsModeFilters = (JSONArray) spacingObj;
+
+	    for (int i = 0; i < gtfsModeFilters.length(); i++) {
+	        JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
+	        JSONArray filter = gtfsModeFilter.getJSONArray(0);
+	        Integer spacing = gtfsModeFilter.getInt(1);
+
+	        String propName = filter.getString(0);
+	        String propVal = filter.getString(1);
+
+	        if (propVal.equals("*")) { // star matches everything
+	            return spacing;
+	        }
+
+	        String featPropVal = feat.getProperty(propName);
+	        if (featPropVal != null && featPropVal.equals(propVal)) {
+	            return spacing;
+	        }
+	    }
+
+	    return null;
+	}
 }

@@ -58,35 +58,6 @@ public class PicketStopGenerator implements StopGenerator {
 		return ret;
 	}
 
-	private Integer getSpacing(ExtendedFeature feat) {
-		Object spacingObj = data.get("spacing");
-		if (Integer.class.isInstance(spacingObj)) {
-			return (Integer) spacingObj;
-		}
-
-		JSONArray gtfsModeFilters = (JSONArray) spacingObj;
-
-		for (int i = 0; i < gtfsModeFilters.length(); i++) {
-			JSONArray gtfsModeFilter = gtfsModeFilters.getJSONArray(i);
-			JSONArray filter = gtfsModeFilter.getJSONArray(0);
-			Integer spacing = gtfsModeFilter.getInt(1);
-
-			String propName = filter.getString(0);
-			String propVal = filter.getString(1);
-
-			if (propVal.equals("*")) { // star matches everything
-				return spacing;
-			}
-
-			String featPropVal = feat.getProperty(propName);
-			if (featPropVal != null && featPropVal.equals(propVal)) {
-				return spacing;
-			}
-		}
-
-		return null;
-	}
-
 	public ProtoRoute makeProtoRoute(ExtendedFeature exft, Double speed) throws Exception {
 		GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
 		MultiLineString geom = (MultiLineString) geomAttr.getValue();
@@ -95,7 +66,7 @@ public class PicketStopGenerator implements StopGenerator {
 			throw new Exception("Features may only contain a single linestring.");
 		}
 		
-		double spacing = this.getSpacing(exft);
+		double spacing = Config.getSpacing(exft, this.data);
 
 		LineString ls = (LineString) geom.getGeometryN(0);
 		ProtoRoute ret = this.makeProtoRouteStopsFromLinestring(ls, spacing);
