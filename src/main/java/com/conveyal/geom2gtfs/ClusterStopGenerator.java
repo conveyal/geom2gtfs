@@ -129,16 +129,10 @@ public class ClusterStopGenerator implements StopGenerator {
                 
                 // set the distance appropriately
                 // away from this one, not from some ideal location.
-                LinearLocation loc = ils.project(prs.coord);
-                
-                // the segment index is also the index of the previous coordinate
-                // TODO: handle loop routes in snapping
-                int left = loc.getSegmentIndex();
-                
-                // find the distance _along the segment_ to this point
-                // since we snapped it, the distance along the segment is the same as the distance
-                double metersAlongSegment = GeoMath.greatCircle(coords[left], prs.coord);
-                prs.dist = metersAlongLine[left] + metersAlongSegment;
+                // Note that we do not set the distance to this stop, but rather the distance to the ideal location
+                // of this stop. this avoids issues with loop routes, where the same stop might have multiple distances
+                // distance just needs to be monotonically increasing, no need to be super-accurate in a ratio sense.
+                prs.dist = offset;
                 out.add(prs);
             }
         }
