@@ -75,7 +75,7 @@ The ‘stops’ section specifies a strategy, which can be “shapefile”, “p
 
 Alternately, one can use the cluster strategy. This strategy takes a spacing argument like the picket strategy, but unlike the picket strategy it will use the same stops for multiple routes that travel along the same roads. It also takes a `threshold` property (default 100m), which is the maximum distance (in meters) stops will be moved from their ideal locations in order to coincide with an existing stop.
 
-You can also specify a property `osmfile`, which is an OSM PBF file whose walkable roads and intersections will have stops snapped to them.
+You can also specify a property `osmfiles`, which is a list of OSM PBF files whose roads and intersections will have stops snapped to them.
 
 You can specify a property `create_stops`. If true (default), stops will be created even if there is nothing nearby to snap them to. If false, these stop locations will be skipped (useful for routes that run along highways, for example).
 
