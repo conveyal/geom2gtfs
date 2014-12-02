@@ -30,7 +30,6 @@ import com.vividsolutions.jts.linearref.LocationIndexedLine;
  */
 public class ClusterStopGenerator implements StopGenerator {
     public SpatialIndex stopIndex;
-    public SpatialIndex intersectionIndex;
     public SpatialIndex wayIndex;
     
     private static GeometryFactory geometryFactory =
@@ -47,7 +46,6 @@ public class ClusterStopGenerator implements StopGenerator {
     
     public ClusterStopGenerator(JSONObject data) {
         stopIndex = new Quadtree();
-        intersectionIndex = new Quadtree();
         wayIndex = new Quadtree();
         threshold = data.has("threshold") ? data.getDouble("threshold") : 100D;
         createUnmatchedStops = data.has("create_stops") ? data.getBoolean("create_stops") : true;
@@ -66,25 +64,20 @@ public class ClusterStopGenerator implements StopGenerator {
                     // todo: pedestrian = no
                     if (way.hasTag("highway") && way.getTag("highway") != "motorway"
                             && way.nodes.length >= 2) {
-                        // create a linestring
-                        Coordinate[] coords = new Coordinate[way.nodes.length];
+                        
+                        // create wayinfo                        
+                        WayInfo wi = new WayInfo();
+                        wi.coords = new Coordinate[way.nodes.length];
+                        wi.intersections = new boolean[way.nodes.length];
                         
                         for (int coordIdx = 0; coordIdx < way.nodes.length; coordIdx++) {
                             Node node = osm.nodes.get(way.nodes[coordIdx]);
-                            coords[coordIdx] = new Coordinate(node.lon, node.lat);
+                            wi.coords[coordIdx] = new Coordinate(node.lon, node.lat);
+                            wi.intersections[coordIdx] = osm.intersections.contains(way.nodes[coordIdx]);
                         }
                         
-                        LineString ls = geometryFactory.createLineString(coords);
-                        LocationIndexedLine ils = new LocationIndexedLine(ls);
-                        wayIndex.insert(ls.getEnvelopeInternal(), ils);
-                    }
-                }
-                
-                for (long intersection : osm.nodes.keySet()) {
-                    if (osm.intersections.contains(intersection)) {
-                        Node n = osm.nodes.get(intersection);
-                        Coordinate coord = new Coordinate(n.lon, n.lat);
-                        intersectionIndex.insert(new Envelope(coord), coord);
+                        LineString ls = geometryFactory.createLineString(wi.coords);                                                
+                        wayIndex.insert(ls.getEnvelopeInternal(), wi);
                     }
                 }
             }
@@ -186,47 +179,70 @@ public class ClusterStopGenerator implements StopGenerator {
             }
         }
         
-        // OK, so we didn't find a stop. Look for an OSM intersection, or, failing that, an OSM way.
+
+        // Look for nearby ways
+        
+        
         @SuppressWarnings("unchecked")
-        List<Coordinate> intersections = intersectionIndex.query(env);
-        
+        List<WayInfo> ways = wayIndex.query(env);
+
         Coordinate bestPoint = null;
-        double bestDistance = Double.MAX_VALUE;
-        double dist;
-        if (!intersections.isEmpty()) {
-            for (Coordinate point : intersections) {
+        
+        if (!ways.isEmpty()) {
+            // OK, snap to nearest way
+            // note that the spatial index only contains walkable ways
+
+            Coordinate point;
+            int left, right;
+            LinearLocation loc;
+            double bestDistance = Double.MAX_VALUE;
+            double dist, leftDist, rightDist;
+            
+            for (WayInfo wayInfo : ways) {
+                LocationIndexedLine way =
+                        new LocationIndexedLine(geometryFactory.createLineString(wayInfo.coords));
+                loc = way.project(ideal);
+                point = way.extractPoint(loc);
                 dist = GeoMath.greatCircle(point, ideal);
-                
+
                 if (dist < bestDistance && dist <= threshold) {
-                    bestPoint = point;
                     bestDistance = dist;
+                    bestPoint = point;
+                    
+                    // we don't blithely add one to the right segment index, because this isn't
+                    // actually a segment index; if the point is past the end of the line the
+                    // segment index is the index of the last coordinate
+                    // AFAIK segment index cannot be negative.
+                    left = right = loc.getSegmentIndex();
+                    
+                    // but check and give a useful error message in case my assumption is incorrect.
+                    if (left < 0) {
+                        throw new RuntimeException("Got negative segment index.");
+                    }
+                    
+                    // find the next and previous intersections, if they exist
+                    while (!wayInfo.intersections[left] && left > 0) left--;
+                    while (!wayInfo.intersections[right] && right < wayInfo.coords.length - 1) right++;
+                    
+                    leftDist = GeoMath.greatCircle(wayInfo.coords[left], ideal);
+                    rightDist = GeoMath.greatCircle(wayInfo.coords[right], ideal);
+                    
+                    if ((left == right || leftDist <= rightDist) && leftDist <= threshold) {
+                        // we don't reset bestDistance but instead leave it as the distance to the
+                        // nearest point on the way. So we're saying "snap to an intersection, if possible,
+                        // on the closest way"
+                        bestPoint = wayInfo.coords[left];
+                    }
+                    
+                    else if (rightDist <= leftDist && rightDist <= threshold) {
+                        bestPoint = wayInfo.coords[right];
+                    }
+                    
                 }
             }
         }
         
-        if (bestPoint == null) {
-            // Look for nearby ways
-            
-            @SuppressWarnings("unchecked")
-            List<LocationIndexedLine> ways = wayIndex.query(env);
-            
-            if (!ways.isEmpty()) {
-                // OK, snap to nearest way
-                // note that the spatial index only contains walkable ways
-                
-                Coordinate point;
-                for (LocationIndexedLine way : ways) {
-                    point = way.extractPoint(way.project(ideal));
-                    dist = GeoMath.greatCircle(point, ideal);
-                    
-                    if (dist < bestDistance && dist <= threshold) {
-                        bestDistance = dist;
-                        bestPoint = point;
-                    }
-                }
-            }
-        }
-            
+        // if we didn't find anything to snap to, deal with it
         if (bestPoint == null) {
             if (createUnmatchedStops) {
                 bestPoint = ideal;
@@ -238,9 +254,22 @@ public class ClusterStopGenerator implements StopGenerator {
         }
         
         ProtoRouteStop prs = new ProtoRouteStop(bestPoint, 0);
-        // add it to the spatial index for future searches
+        
+        // add the newly-created stop to the index
         stopIndex.insert(new Envelope(prs.coord), prs.stop);
         
         return prs;
-    }    
+    }
+    
+    /**
+     * Holds just enough information about a way to be able to snap to its nodes.
+     * @author mattwigway
+     *
+     */
+    private static class WayInfo {
+        public Coordinate[] coords;
+        
+        /** intersections[i] is true if node i is an intersection, false otherwise */
+        public boolean[] intersections;
+    }
 }
