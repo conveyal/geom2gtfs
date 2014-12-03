@@ -304,6 +304,9 @@ public class Main {
 				}
 			}
 			
+			if (headway == null)
+			    continue; // no service in this time window
+			    
 			headway /= config.waitFactor();
 			
 			Frequency freq = makeFreq(headway, window.startSecs(), window.endSecs(), trip);
