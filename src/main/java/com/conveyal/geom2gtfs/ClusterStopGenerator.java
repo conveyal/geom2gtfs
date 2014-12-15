@@ -145,6 +145,8 @@ public class ClusterStopGenerator implements StopGenerator {
             metersAlongLine[i] = metersAlongLine[i - 1] + GeoMath.greatCircle(coords[i - 1], coords[i]);
         }
         
+        out.length = metersAlongLine[metersAlongLine.length - 1];
+        
         double spacing = Config.getSpacing(exft, this.data);
         
         // find stops near each "ideal" location on the line
