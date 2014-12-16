@@ -397,7 +397,7 @@ public class Main {
 		}
 		Double freqDbl = Double.parseDouble(freqStr);
 		if (freqDbl == 0.0) {
-			return null;
+			throw new FeatureDoesntDefineTimeWindowException(propName);
 		}
 		if (usePeriods) {
 			headway = Double.parseDouble(freqStr) * 60; // minutes to seconds
