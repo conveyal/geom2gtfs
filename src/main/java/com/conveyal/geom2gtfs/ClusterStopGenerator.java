@@ -156,10 +156,18 @@ public class ClusterStopGenerator implements StopGenerator {
             while (metersAlongLine[right] < offset && right < metersAlongLine.length)
                 right++;
             
-            double frac = (offset - metersAlongLine[right - 1]) / (metersAlongLine[right] - metersAlongLine[right - 1]);
+            double length = (metersAlongLine[right] - metersAlongLine[right - 1]);
             
-            // this is the ideal location of the stop, where it would be if the spacing was respected perfectly
-            Coordinate ideal = GeoMath.interpolate(coords[right - 1], coords[right], frac);
+            Coordinate ideal;
+            if (length > 0.00000000001) {
+                double frac = (offset - metersAlongLine[right - 1]) / length;
+                ideal = GeoMath.interpolate(coords[right - 1], coords[right], frac);
+            }
+            else {
+                // We have landed with our ideal stop exactly on top of two duplicated coordinates.
+                // While this seems improbable, it can happen if the coordinates at the start are duplicated
+                ideal = coords[right];
+            }
             
             ProtoRouteStop prs = getProtoRouteStopForCoord(ideal);
             
