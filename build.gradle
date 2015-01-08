@@ -1,7 +1,7 @@
 plugins {
-  id "eu.appsatori.fatjar" version "0.3"
+  id 'java'
+  id 'com.github.johnrengelman.shadow' version '1.2.0'
 }
-
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
@@ -11,12 +11,6 @@ ext {
 }
 
 jar {
-    manifest {
-        attributes 'Main-Class': 'com.conveyal.geom2gtfs.Main'
-    }
-}
-
-fatJar {
     manifest {
         attributes 'Main-Class': 'com.conveyal.geom2gtfs.Main'
     }
