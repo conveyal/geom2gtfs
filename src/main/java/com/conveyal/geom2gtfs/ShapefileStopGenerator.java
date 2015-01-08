@@ -37,15 +37,7 @@ public class ShapefileStopGenerator implements StopGenerator {
 		threshold = data.getDouble("threshold");
 		
 		// collect all features from shapefile
-		FeatureSource<?, ?> lines = Main.getFeatureSource(filename);
-		FeatureCollection<?, ?> featCol = lines.getFeatures();
-		FeatureIterator<?> features = featCol.features();
-		stops = new ArrayList<Feature>();
-		while (features.hasNext()) {
-			Feature feat = (Feature) features.next();
-			stops.add(feat);
-		}
-		
+		stops = Main.getFeatures(filename);		
 	}
 
 	@Override
