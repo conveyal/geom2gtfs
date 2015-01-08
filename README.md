@@ -20,7 +20,7 @@ Usage
 
 Using the geom2gtfs tool is simple, but it requires a carefully prepared shapefile and configuration file.
 
-The input shapefile must be unprojected, and contain only lines, with no multigeometry features. If the features in the shapefile have properties, such as “route” or “mode” or “speed” those properties can be used to modulate the speed of the routes written to the GTFS. It’s possible to use multiple lines to represent the same route if they share a route id property (the name of the property is defined in the config file) and sequential lines run in the same direction and have successive “segment” properties. It’s possible to join a CSV to the shapefile using the geom2gtfs config file, which is how we associated service frequencies with lines. The CSV of service frequencies from King County was compiled using the King County spreadsheet, and looks like this:
+The input shapefile must contain only lines, with no multigeometry features. If the features in the shapefile have properties, such as “route” or “mode” or “speed” those properties can be used to modulate the speed of the routes written to the GTFS. It’s possible to use multiple lines to represent the same route if they share a route id property (the name of the property is defined in the config file) and sequential lines run in the same direction and have successive “segment” properties. It’s possible to join a CSV to the shapefile using the geom2gtfs config file, which is how we associated service frequencies with lines. The CSV of service frequencies from King County was compiled using the King County spreadsheet, and looks like this:
 
     route,peak_am,midday,peak_pm,night,sat,sun
     1,15.0,30.0,15.0,45.0,None,None
@@ -79,10 +79,10 @@ You can also specify a property `osmfiles`, which is a list of OSM PBF files who
 
 You can specify a property `create_stops`. If true (default), stops will be created even if there is nothing nearby to snap them to. If false, these stop locations will be skipped (useful for routes that run along highways, for example).
 
-Specify the name of the shapefile property where the route id is kept.
+Specify the name of the shapefile property where the route id is kept. If this property is omitted, or if the shapefile doesn't contain it, route ID's will be generated. This of course means that each route can be represented by but a single feature.
 
       "route_id_prop_name":"ROUTE",
-Specify the name of the shapefile property where the route name is kept.
+Specify the name of the shapefile property where the route name is kept. Will be set to the route ID if this property is omitted or the shapefile doesn't contain it.
 
       "route_name_prop_name":"ROUTE",
 Specify the ‘service windows’. Each entry in the list specifies the service window name, is starting time, and its ending time, both in hours since midnight. For example “peak_am” runs from 6am to 9am. The shapefile must contain a property with the same name as each service window, filled out with the service level for that frequency. For example the route “1” has a property “peak_am” with value “15.0”.
@@ -112,6 +112,11 @@ Set the start and end date of the service calendar. Our hypothetical GTFS will b
 Specify whether the service level values are periods (headways), the amount of time between departures; or frequencies, the number of departures in an hour.
 
      "use_periods":true,
+
+If you have not specified service level values for any of the features in your file, you can set the default service level. This is controlled by use_periods, so may be a frequency or a headway (in minutes) depending on the value of that setting.
+
+    "service_level": 15,
+
 Set whether or not service should run in both directions of a shapefile line. If “is_bidirectional” is false, you’ll need to make a shapefile feature for each route direction.
 
      "is_bidirectional":true,
