@@ -10,12 +10,19 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
+import org.geotools.geometry.jts.JTS;
+import org.geotools.referencing.CRS;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.onebusaway.gtfs.model.Agency;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Frequency;
@@ -28,16 +35,27 @@ import org.onebusaway.gtfs.model.calendar.ServiceDate;
 import org.onebusaway.gtfs.serialization.GtfsWriter;
 import org.opengis.feature.Feature;
 import org.opengis.feature.GeometryAttribute;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.MathTransform;
 
+import com.google.common.collect.Collections2;
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
+
 
 public class Main {
 
 	static final String DEFAULT_AGENCY_ID = "0";
 	private static final String DEFAULT_CAL_ID = "0";
 	static Config config;
+	
+	// used to generate ids and names for routes that do not have them
+	private static int nextId = 0;
 
 	static GtfsQueue queue = null;
 
@@ -78,10 +96,7 @@ public class Main {
 		agency.setTimezone(config.getAgencyTimezone());
 		queue.agencies.add(agency);
 
-		FeatureSource<?, ?> lines = getFeatureSource(fn);
-
-		FeatureCollection<?, ?> featCol = lines.getFeatures();
-		FeatureIterator<?> features = featCol.features();
+		List<Feature> features = getFeatures(fn);
 		
 		List<ExtendedFeature> extFeatures = joinFeatures( features, csvJoin );
 		
@@ -91,14 +106,8 @@ public class Main {
 		
 		StopGenerator stopGenerator = config.getStopGenerator();
 		
-		for( List<ExtendedFeature> group : featureGroups.values() ){
-			
-			ExtendedFeature exemplar = group.get(0);
-
-			System.out.println("generating elements for \"" + exemplar.getProperty(config.getRouteNamePropName())
-					+ "\"");
-
-			featToGtfs(group, agency, stopGenerator);
+		for( Entry<String, List<ExtendedFeature>> group : featureGroups.entrySet() ){		    
+			featToGtfs(group.getValue(), agency, stopGenerator, group.getKey());
 		}
 
 		System.out.println( "writing to "+output_fn );
@@ -115,6 +124,11 @@ public class Main {
 		// gather by route id
 		for( ExtendedFeature exft : extFeatures ){
 			String id = exft.getProperty( config.getRouteIdPropName() );
+			
+			if (id == null) {
+			    id = "generated_" + nextId++;
+			}
+			    
 			
 			List<ExtendedFeature> group = ret.get(id);
 			if(group==null){
@@ -168,11 +182,10 @@ public class Main {
 		return ret;
 	}
 
-	private static List<ExtendedFeature> joinFeatures(FeatureIterator<?> features, CsvJoinTable csvJoin) {
+	private static List<ExtendedFeature> joinFeatures(List<Feature> features, CsvJoinTable csvJoin) {
 		List<ExtendedFeature> ret = new ArrayList<ExtendedFeature>();
 		
-		while (features.hasNext()) {
-			Feature feat = (Feature) features.next();
+		for (Feature feat : features) {
 
 			ExtendedFeature exft = new ExtendedFeature(feat, csvJoin);
 			
@@ -183,7 +196,7 @@ public class Main {
 	}
 
 	private static void featToGtfs(List<ExtendedFeature> group, Agency agency,
-	        StopGenerator stopGenerator) throws Exception {
+	        StopGenerator stopGenerator, String routeId) throws Exception {
 		
 		ExtendedFeature exemplar = group.get(0);
 
@@ -191,8 +204,13 @@ public class Main {
 		Integer mode = config.getMode(exemplar);
 
 		// generate route
-		String routeId = exemplar.getProperty(config.getRouteIdPropName());
 		String routeName = exemplar.getProperty(config.getRouteNamePropName());
+		
+		if (routeName == null)
+		    routeName = routeId;
+		    
+                System.out.println("generating elements for \"" + routeName + "\"");
+		
 		Route route = new Route();
 		route.setId(new AgencyAndId(DEFAULT_AGENCY_ID, routeId));
 		route.setShortName(routeName);
@@ -392,23 +410,28 @@ public class Main {
 	private static Double getHeadway(ExtendedFeature exft, String propName, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		double headway;
 		String freqStr = exft.getProperty(propName);
+		Double freqDbl;
+		
 		if (freqStr == null || freqStr.equals("None")) {
-			throw new FeatureDoesntDefineTimeWindowException(propName);
-		}
-		Double freqDbl = Double.parseDouble(freqStr);
-		if (freqDbl == 0.0) {
-			throw new FeatureDoesntDefineTimeWindowException(propName);
-		}
-		if (usePeriods) {
-			headway = Double.parseDouble(freqStr) * 60; // minutes to seconds
+			freqDbl = config.getDefaultServiceLevel();			
+			System.err.println("warning: using default frequency for feature " + exft.toString());
 		} else {
-			double perHour = Double.parseDouble(freqStr); // arrivals per hour
-			headway = 3600 / perHour;
+			freqDbl = Double.parseDouble(freqStr);
+		}
+		
+		if (freqDbl == 0.0 || freqDbl == null) {
+			throw new FeatureDoesntDefineTimeWindowException(propName);
+		}
+		
+		if (usePeriods) {
+			headway = freqDbl * 60; // minutes to seconds
+		} else {
+			headway = 3600 / freqDbl;
 		}
 		return headway;
 	}
 
-	static FeatureSource<?, ?> getFeatureSource(String shp_filename) throws MalformedURLException, IOException {
+	static List<Feature> getFeatures(String shp_filename) throws MalformedURLException, IOException {
 		// construct shapefile factory
 		File file = new File(shp_filename);
 		Map<String, URL> map = new HashMap<String, URL>();
@@ -417,8 +440,40 @@ public class Main {
 
 		// get shapefile as generic 'feature source'
 		String typeName = dataStore.getTypeNames()[0];
-		FeatureSource<?, ?> source = dataStore.getFeatureSource(typeName);
-		return source;
+		SimpleFeatureSource featureSource = dataStore.getFeatureSource(dataStore.getTypeNames()[0]);
+
+		SimpleFeatureType schema = featureSource.getSchema();
+
+		CoordinateReferenceSystem shpCRS = schema.getCoordinateReferenceSystem();
+		
+		SimpleFeatureCollection collection = featureSource.getFeatures();
+		SimpleFeatureIterator iterator = collection.features();
+		
+		List<Feature> ret = new ArrayList<Feature>(collection.size());
+		
+		if (!shpCRS.equals(DefaultGeographicCRS.WGS84)) {
+			try {
+			MathTransform transform = CRS.findMathTransform(shpCRS, DefaultGeographicCRS.WGS84, true);
+
+			while (iterator.hasNext()) {
+				SimpleFeature next = iterator.next();
+				
+				Geometry geom = (Geometry) next.getDefaultGeometry();
+				next.setDefaultGeometry(JTS.transform(geom, transform));
+				
+				ret.add(next);
+			}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+		else {
+			while (iterator.hasNext()) {
+				ret.add(iterator.next());
+			}
+		}	
+			
+		return ret;
 	}
 
 }

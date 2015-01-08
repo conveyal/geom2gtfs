@@ -296,6 +296,17 @@ public class Config {
 	
 	
 	/**
+	 * Get the default frequency for routes in this file.
+	 */
+	public Double getDefaultServiceLevel() {
+		try {
+			return data.getDouble("service_level");
+		} catch (JSONException e) {
+			return null;
+		}
+	}
+	
+	/**
 	 * Get the desired stop spacing for feature feat from the stop generator
 	 * configuration stopGeneratorData.
 	 */
