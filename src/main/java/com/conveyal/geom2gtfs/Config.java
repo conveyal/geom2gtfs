@@ -144,6 +144,10 @@ public class Config {
 		    return ((Integer) speedObj).doubleValue();
 		}
 		
+		else if (String.class.isInstance(speedObj)) {
+			return  Double.parseDouble(feat.getProperty((String) speedObj));
+		}
+		
 		JSONArray gtfsModeFilters = (JSONArray)speedObj;
 		
 		for(int i=0; i<gtfsModeFilters.length(); i++){
