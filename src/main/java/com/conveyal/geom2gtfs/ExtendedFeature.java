@@ -25,7 +25,8 @@ public class ExtendedFeature {
 		}
 	}
 
-	public String getProperty(String key) {
+	/** get a raw property */
+	public Object getPropertyRaw (String key) {
 		if (extraFields != null) {
 			String ret = extraFields.get(key);
 			if (ret != null) {
@@ -38,11 +39,12 @@ public class ExtendedFeature {
 			return null;
 		}
 		Object val = prop.getValue();
-		if(val==null){
-			return null;
-		}
-		return val.toString();
-
+		return val;
+	}
+	
+	public String getProperty(String key) {
+		Object val = getPropertyRaw(key);
+		return val != null ? val.toString() : null;
 	}
 
 }

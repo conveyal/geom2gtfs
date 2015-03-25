@@ -162,8 +162,33 @@ public class Config {
 				return speed;
 			}
 			
-			String featPropVal = feat.getProperty(propName);
-			if(featPropVal!=null && featPropVal.equals(propVal)){
+			Object featPropVal = feat.getPropertyRaw(propName);
+			if (featPropVal == null) {
+				if (propVal.equals("null"))
+					return speed;
+				else
+					continue;
+			}
+			
+			if (featPropVal instanceof Double) {
+				if (((Double) featPropVal).equals(Double.parseDouble(propVal))) {
+					return speed;
+				}
+				else {
+					continue;
+				}
+			}
+			
+			if (featPropVal instanceof Integer) {
+				if (((Integer) featPropVal).equals(Integer.parseInt(propVal))) {
+					return speed;
+				}
+				else {
+					continue;
+				}
+			}
+			
+			if(featPropVal.toString().equals(propVal)){
 				return speed;
 			}
 		}
