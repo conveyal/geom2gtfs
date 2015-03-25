@@ -63,7 +63,7 @@ public class ClusterStopGenerator implements StopGenerator {
         
         // Load OSM files
         if (data.has("osmfiles")) {
-            JSONArray files = data.getJSONArray("osmfiles");
+         /**   JSONArray files = data.getJSONArray("osmfiles");
             for (int i = 0; i < files.length(); i++) {
                 String fn = files.getString(i);
                 System.err.println("Processing OSM file " + fn);
@@ -91,7 +91,7 @@ public class ClusterStopGenerator implements StopGenerator {
                         wayIndex.insert(ls.getEnvelopeInternal(), wi);
                     }
                 }
-            }
+            }**/
         }
         
         // Load GTFS files        
