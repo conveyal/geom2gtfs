@@ -1,11 +1,11 @@
 package com.conveyal.geom2gtfs;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-
+import com.vividsolutions.jts.geom.*;
+import com.vividsolutions.jts.index.SpatialIndex;
+import com.vividsolutions.jts.index.quadtree.Quadtree;
+import com.vividsolutions.jts.linearref.LinearLocation;
+import com.vividsolutions.jts.linearref.LocationIndexedLine;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.onebusaway.csv_entities.EntityHandler;
 import org.onebusaway.csv_entities.exceptions.CsvEntityIOException;
@@ -13,20 +13,10 @@ import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.serialization.GtfsReader;
 import org.opengis.feature.GeometryAttribute;
-import org.opentripplanner.osm.Node;
-import org.opentripplanner.osm.OSM;
-import org.opentripplanner.osm.Way;
 
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Envelope;
-import com.vividsolutions.jts.geom.GeometryFactory;
-import com.vividsolutions.jts.geom.LineString;
-import com.vividsolutions.jts.geom.MultiLineString;
-import com.vividsolutions.jts.geom.PrecisionModel;
-import com.vividsolutions.jts.index.SpatialIndex;
-import com.vividsolutions.jts.index.quadtree.Quadtree;
-import com.vividsolutions.jts.linearref.LinearLocation;
-import com.vividsolutions.jts.linearref.LocationIndexedLine;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * A stop generator that creates stops at roughly the requested spacing
