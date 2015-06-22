@@ -86,5 +86,10 @@
       <artifactId>json</artifactId>
       <version>20141113</version>
     </dependency>
+    <dependency>
+      <groupId>org.opentripplanner</groupId>
+      <artifactId>otp</artifactId>
+      <version>0.14</version>
+    </dependency>
   </dependencies>
 </project>
