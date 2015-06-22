@@ -11,8 +11,8 @@ To get started, install the [latest JDK](http://www.oracle.com/technetwork/java/
 ```console
 git clone https://github.com/conveyal/geom2gtfs
 cd geom2gtfs
-gradle fatJar
-java -jar build/libs/geom2gtfs.jar <shapefile_filename> <config_filename> <output_filename>
+gradle shadowJar
+java -jar build/libs/geom2gtfs-all.jar <shapefile_filename> <config_filename> <output_filename>
 ```
 
 Usage
