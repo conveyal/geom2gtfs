@@ -8,3 +8,7 @@ data
 .DS_Store
 *.json
 *.zip
+.idea/
+geom2gtfs.iml
+target/
+
