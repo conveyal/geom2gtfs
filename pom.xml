@@ -91,9 +91,9 @@
       <url>http://download.osgeo.org/webdav/geotools/</url>
     </repository>
     <repository>
-	    <id>conveyal</id>
-	    <name>Conveyal Maven Repository</name>
-	    <url>http://maven.conveyal.com/</url>
+      <id>conveyal</id>
+      <name>Conveyal Maven Repository</name>
+      <url>http://maven.conveyal.com/</url>
 	</repository>
   </repositories>
 
