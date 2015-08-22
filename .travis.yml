@@ -1,0 +1,28 @@
+language: java
+
+# Travis doesn't (yet) support OpenJDK 8
+jdk:
+  - oraclejdk8
+
+# Replace Travis's default Maven installation step with a no-op.
+# This avoids redundantly pre-running 'mvn install -DskipTests' every time.
+install: true
+
+# Replace Travis's default build step.
+# Run all Maven phases at once up through verify, install, and deploy.
+script: mvn clean deploy
+
+env:
+  global:
+    # encrypted AWS access/secret keys to allow automated deployment to the Conveyal Maven repo on S3
+    - secure: "b3j0JkkzXuE4YLi4sgCeJdTbZloU0ReWHXAwWNFxkcoBG9Q65KtwZEH21r7fJIT2BGkcqTYXKg8bGxzbmdnJawNFhoWxgI4/NhHErga2n6eqPuPT2TLM8crEawOxFgD6e4FmfYyvRbJ6AgK+bSB4I3a6wNojhxi/aabp/s9hEOU="
+    - secure: "fsG2/bAev/6hjzuBZ+uotMMCxfBdwS7L7avnZ3cIeJCiJYxFc2eH8het9RuSdfFD0FwWdtif1g+Cjm93ZU57UiL7d1m2u8lsmLwqRN5IWlKJif/lTBkbHdxDNVv39LuO+1XgApV30qgUfFO8SDxtmROvmQapDvqUp6qv6/THI/I="
+
+# If sudo is disabled, CI runs on container based infrastructure (allows caching &c.)
+sudo: false
+
+# Retain the local Maven repository to speed up builds.
+cache:
+  directories:
+    - "$HOME/.m2/repository"
+
