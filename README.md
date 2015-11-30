@@ -8,13 +8,13 @@ geom2gtfs
 Setup
 -----
 
-To get started, install the [latest JDK](http://www.oracle.com/technetwork/java/javase/downloads/index.html) and [Gradle](http://www.gradle.org/). Then:
+To get started, install the [latest JDK](http://www.oracle.com/technetwork/java/javase/downloads/index.html) and [Maven](http://maven.apache.org/). Then:
 
 ```console
 git clone https://github.com/conveyal/geom2gtfs
 cd geom2gtfs
-gradle shadowJar
-java -jar build/libs/geom2gtfs-all.jar <shapefile_filename> <config_filename> <output_filename>
+mvn package
+java -jar target/geom2gtfs.jar <shapefile_filename> <config_filename> <output_filename>
 ```
 
 Usage
