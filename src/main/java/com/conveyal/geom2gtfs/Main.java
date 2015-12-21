@@ -30,23 +30,27 @@ public class Main {
 
 	static final String DEFAULT_AGENCY_ID = "0";
 	private static final String DEFAULT_CAL_ID = "0";
-	static Config config;
+
+	private Config config;
 	
 	// used to generate ids and names for routes that do not have them
-	private static int nextId = 0;
+	private int nextId = 0;
 
-	static GtfsQueue queue = null;
+	private GtfsQueue queue = null;
 
-	public static void main(String[] args) throws Exception {
+	/**
+	 * wrapper main function creates instance so that calling geom2gtfs twice in the same JVM doesn't cause conflicts
+	 * (this can happen in analyst-server, see conveyal/analyst-server#262)
+     */
+	public static void main (String[] args) throws Exception {
 		if (args.length < 3) {
 			System.out.println("usage: cmd shapefile_fn config_fn output_fn");
 			return;
 		}
+		new Main().main(args[0], args[1], args[2]);
+	}
 
-		String fn = args[0];
-		String config_fn = args[1];
-		String output_fn = args[2];
-
+	public void main(String fn, String config_fn, String output_fn) throws Exception {
 		config = new Config(config_fn);
 
 		// check if config specifies a csv join
@@ -96,7 +100,7 @@ public class Main {
 		System.out.println( "done" );
 	}
 
-	private static Map<String, List<ExtendedFeature>> groupFeatures(List<ExtendedFeature> extFeatures) {
+	private Map<String, List<ExtendedFeature>> groupFeatures(List<ExtendedFeature> extFeatures) {
 		Map<String, List<ExtendedFeature>> ret = new HashMap<String, List<ExtendedFeature>>();
 		
 		// gather by route id
@@ -148,7 +152,7 @@ public class Main {
 		return ret;
 	}
 
-	private static List<ExtendedFeature> filterFeatures(List<ExtendedFeature> extFeatures) {
+	private List<ExtendedFeature> filterFeatures(List<ExtendedFeature> extFeatures) {
 		List<ExtendedFeature> ret = new ArrayList<ExtendedFeature>();
 		
 		for( ExtendedFeature exft : extFeatures ){
@@ -160,7 +164,7 @@ public class Main {
 		return ret;
 	}
 
-	private static List<ExtendedFeature> joinFeatures(List<Feature> features, CsvJoinTable csvJoin) {
+	private List<ExtendedFeature> joinFeatures(List<Feature> features, CsvJoinTable csvJoin) {
 		List<ExtendedFeature> ret = new ArrayList<ExtendedFeature>();
 		
 		for (Feature feat : features) {
@@ -173,7 +177,7 @@ public class Main {
 		return ret;
 	}
 
-	private static void featToGtfs(List<ExtendedFeature> group, Agency agency,
+	private void featToGtfs(List<ExtendedFeature> group, Agency agency,
 	        StopGenerator stopGenerator, String routeId) throws Exception {
 		
 		ExtendedFeature exemplar = group.get(0);
@@ -232,7 +236,7 @@ public class Main {
 
 	}
 
-	private static void makeTimetableTrips(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
+	private void makeTimetableTrips(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
 			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		// for each window
 		for (ServiceWindow window : config.getServiceWindows()) {
@@ -280,7 +284,7 @@ public class Main {
 		
 	}
 
-	private static void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
+	private void makeFrequencyTrip(ExtendedFeature exft, List<ProtoRoute> protoRoutes, Route route,
 			Map<ProtoRouteStop, Stop> prsStops, boolean reverse, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		// generate a trip
 		Trip trip = makeNewTrip(route, reverse);
@@ -323,7 +327,7 @@ public class Main {
 		
 	}
 
-	private static Trip makeNewTrip(Route route, boolean reverse) {
+	private Trip makeNewTrip(Route route, boolean reverse) {
 		Trip trip = new Trip();
 		trip.setRoute(route);
 		trip.setId(new AgencyAndId(DEFAULT_AGENCY_ID, String.valueOf(queue.trips.size())));
@@ -385,7 +389,7 @@ public class Main {
 		return freq;
 	}
 
-	private static Double getHeadway(ExtendedFeature exft, String propName, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
+	private Double getHeadway(ExtendedFeature exft, String propName, boolean usePeriods) throws FeatureDoesntDefineTimeWindowException {
 		double headway;
 		String freqStr = exft.getProperty(propName);
 		Double freqDbl;
