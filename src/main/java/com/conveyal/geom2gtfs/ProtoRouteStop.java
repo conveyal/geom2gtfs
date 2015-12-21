@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProtoRouteStop {
         // TODO: this is kind of hacky, we should really be using a separate ID space for each feed.
-        private AtomicInteger createdStopId = new AtomicInteger();
+        private static AtomicInteger createdStopId = new AtomicInteger();
     
         public ProtoRouteStop (Coordinate coord, double dist) {
             this.coord = coord;
