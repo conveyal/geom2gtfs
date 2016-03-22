@@ -118,5 +118,10 @@
       <artifactId>json</artifactId>
       <version>20141113</version>
     </dependency>
+    <dependency>
+      <groupId>com.conveyal</groupId>
+      <artifactId>osm-lib</artifactId>
+      <version>0.1-SNAPSHOT</version>
+    </dependency>
   </dependencies>
 </project>

@@ -1,5 +1,8 @@
 package com.conveyal.geom2gtfs;
 
+import com.conveyal.osmlib.Node;
+import com.conveyal.osmlib.OSM;
+import com.conveyal.osmlib.Way;
 import com.vividsolutions.jts.geom.*;
 import com.vividsolutions.jts.index.SpatialIndex;
 import com.vividsolutions.jts.index.quadtree.Quadtree;
@@ -28,6 +31,7 @@ public class ClusterStopGenerator implements StopGenerator {
     // this is final because the subclass stoploader accesses it.
     public final SpatialIndex stopIndex;
     public SpatialIndex wayIndex;
+    public SpatialIndex createdStopIndex;
     
     private JSONObject data;
     
@@ -48,22 +52,25 @@ public class ClusterStopGenerator implements StopGenerator {
         
         stopIndex = new Quadtree();
         wayIndex = new Quadtree();
+        createdStopIndex = new Quadtree();
         threshold = data.has("threshold") ? data.getDouble("threshold") : 100D;
         createUnmatchedStops = data.has("create_stops") ? data.getBoolean("create_stops") : true;
         
         // Load OSM files
         if (data.has("osmfiles")) {
-         /**   JSONArray files = data.getJSONArray("osmfiles");
+         JSONArray files = data.getJSONArray("osmfiles");
             for (int i = 0; i < files.length(); i++) {
                 String fn = files.getString(i);
                 System.err.println("Processing OSM file " + fn);
-                
-                OSM osm = OSM.fromPBF(fn);
-                osm.findIntersections();
-                
+
+                // store OSM in temporary file
+                OSM osm = new OSM(null);
+                osm.intersectionDetection = true;
+                osm.readFromFile(fn);
+
                 for (Way way : osm.ways.values()) {
                     // todo: pedestrian = no
-                    if (way.hasTag("highway") && way.getTag("highway") != "motorway"
+                    if (way.hasTag("highway") && !"motorway".equals(way.getTag("highway"))
                             && way.nodes.length >= 2) {
                         
                         // create wayinfo                        
@@ -73,15 +80,15 @@ public class ClusterStopGenerator implements StopGenerator {
                         
                         for (int coordIdx = 0; coordIdx < way.nodes.length; coordIdx++) {
                             Node node = osm.nodes.get(way.nodes[coordIdx]);
-                            wi.coords[coordIdx] = new Coordinate(node.lon, node.lat);
-                            wi.intersections[coordIdx] = osm.intersections.contains(way.nodes[coordIdx]);
+                            wi.coords[coordIdx] = new Coordinate(node.getLon(), node.getLat());
+                            wi.intersections[coordIdx] = osm.intersectionNodes.contains(way.nodes[coordIdx]);
                         }
                         
                         LineString ls = geometryFactory.createLineString(wi.coords);                                                
                         wayIndex.insert(ls.getEnvelopeInternal(), wi);
                     }
                 }
-            }**/
+            }
         }
         
         // Load GTFS files        
@@ -117,13 +124,13 @@ public class ClusterStopGenerator implements StopGenerator {
     public ProtoRoute makeProtoRoute(ExtendedFeature exft, Double speed) throws Exception {
         ProtoRoute out = new ProtoRoute();
         out.speed = speed;
-        
+
         // find candidate stops
         GeometryAttribute geomAttr = exft.feat.getDefaultGeometryProperty();
         MultiLineString geom = (MultiLineString) geomAttr.getValue();
         
         LineString ls = (LineString) geom.getGeometryN(0);
-        LocationIndexedLine ils = new LocationIndexedLine(ls);
+        LocationIndexedLineInLocalCoordinateSystem indexed = new LocationIndexedLineInLocalCoordinateSystem(ls.getCoordinates());
                 
         // figure out the offsets to each coordinate in the line
         Coordinate[] coords = ls.getCoordinates();
@@ -159,7 +166,7 @@ public class ClusterStopGenerator implements StopGenerator {
                 ideal = coords[right];
             }
             
-            ProtoRouteStop prs = getProtoRouteStopForCoord(ideal);
+            ProtoRouteStop prs = getProtoRouteStopForCoord(ideal, indexed);
             
             if (prs != null) {
                 // don't add the same stop twice in a row.
@@ -182,14 +189,14 @@ public class ClusterStopGenerator implements StopGenerator {
     /**
      * Find the best stop near the given coordinate.
      */
-    private ProtoRouteStop getProtoRouteStopForCoord(Coordinate ideal) {
+    private ProtoRouteStop getProtoRouteStopForCoord(Coordinate ideal, LocationIndexedLineInLocalCoordinateSystem routeGeometry) {
         // first look for existing nearby stops
         Envelope env = new Envelope(ideal);
         
         // get the upper bound
         double thresholdDegrees = GeoMath.upperBoundDegreesForThreshold(ideal.y, threshold);
         env.expandBy(thresholdDegrees);
-        
+
         @SuppressWarnings("unchecked")
         List<Stop> stops = stopIndex.query(env);
         
@@ -199,9 +206,15 @@ public class ClusterStopGenerator implements StopGenerator {
             Stop best = null;
             
             for (Stop stop : stops) {
-                double dist = GeoMath.greatCircle(stop.getLon(), stop.getLat(), ideal.x, ideal.y);
-                
-                if (dist < bestDistance && dist <= threshold) {
+                Coordinate stopCoord = new Coordinate(stop.getLon(), stop.getLat());
+                double dist = GeoMath.greatCircle(stopCoord, ideal);
+
+                // make sure it's not on a completely different street
+                Coordinate pointOnRoute = routeGeometry.extractPoint(routeGeometry.project(stopCoord));
+                double distFromRoute = GeoMath.greatCircle(stopCoord, pointOnRoute);
+
+                // TODO arbitrary hardcoded cutoff for distance from route
+                if (dist < bestDistance && dist <= threshold && distFromRoute < 50) {
                     bestDistance = dist;
                     best = stop;
                 }
@@ -232,8 +245,8 @@ public class ClusterStopGenerator implements StopGenerator {
             double dist, leftDist, rightDist;
             
             for (WayInfo wayInfo : ways) {
-                LocationIndexedLine way =
-                        new LocationIndexedLine(geometryFactory.createLineString(wayInfo.coords));
+                LocationIndexedLineInLocalCoordinateSystem way =
+                        new LocationIndexedLineInLocalCoordinateSystem(wayInfo.coords);
                 loc = way.project(ideal);
                 point = way.extractPoint(loc);
                 dist = GeoMath.greatCircle(point, ideal);

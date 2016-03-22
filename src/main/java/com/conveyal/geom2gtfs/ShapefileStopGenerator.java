@@ -127,19 +127,18 @@ public class ShapefileStopGenerator implements StopGenerator {
 		double segDist=0;
 		for(int i=0; i<seg; i++){
 			Coordinate segStart = ls.getCoordinateN(i);
-			Coordinate segEnd = ls.getCoordinateN(i+1);
-			
+			Coordinate segEnd = ls.getCoordinateN(i + 1);
 			segDist = getSegLength( segStart, segEnd );
-			
-			if(i==seg-1){
-				break; // we wanted the seg endpoints but not to add to the length total
-			}
-			
 			dist += segDist;
 		}
-		
-		double segFraction = ix.getSegmentFraction();
-		dist += segFraction*segDist;
+
+		if (seg < ls.getNumPoints() - 1) {
+			Coordinate segStart = ls.getCoordinateN(seg);
+			Coordinate segEnd = ls.getCoordinateN(seg + 1);
+			segDist = getSegLength(segStart, segEnd);
+			double segFraction = ix.getSegmentFraction();
+			dist += segFraction * segDist;
+		}
 		
 		return dist;
 	}
