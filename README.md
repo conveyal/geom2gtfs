@@ -1,7 +1,9 @@
 geom2gtfs
 =========
 
-[geom2gtfs](https://github.com/conveyal/geom2gtfs) is a command line tool that converts each feature in a shapefile into a route in a GTFS file. 
+[geom2gtfs](https://github.com/conveyal/geom2gtfs) is a command line tool that converts each feature in a shapefile into a route in a GTFS file.
+
+This tool is now deprecated in favor of our graphical [Scenario Editor](https://github.com/conveyal/scenario-editor) tool.
 
 [![Build Status](https://travis-ci.org/conveyal/geom2gtfs.svg?branch=master)](https://travis-ci.org/conveyal/geom2gtfs)
 
